@@ -1,0 +1,31 @@
+{
+  "summary": "First-run end-to-end testing of Wayfind. Backend: 29/29 pytest tests pass (health/meta/home, search incl. the acceptance '39 group trips' query, facets, sort, trip/operator detail, compare, departures batch, leads create+validation, alerts CRUD, shortlists create/get/vote, operator-signup, NL search via Claude Sonnet 4.5, admin login/overview/add-operator/verify/add-trip/add-departure). Frontend: Home globe + search bar + explore grid + 8 trending + 15 vibe tiles + 12 explore-dest render. Demo link lands on /search with headline '39 group trips · 15 operators' (exact acceptance match). Facet toggling (filter-gender-women_only) correctly updates to '17 group trips · 6 operators' and chips are shown. Sort tabs, Clear all, Map view (22 pins), Calendar view (123 days) all functional. Compare 2 trips -> compare-tray -> /compare page shows compare-table + compare-best-badge. Trip detail renders trip-title/departures/meeting-point-card/group-composition/itinerary-timeline/trip-inclusions/trip-safety/trip-reviews. Enquiry form submits -> lead-success. Shortlist via heart buttons -> share link created -> voting works (voter-name + vote-up). Admin login (admin/wayfind2026) -> admin-dashboard with leads/operators/add-* tabs. Saved search -> /alerts page lists the alert with correct 'matching' count. NL search returned proper JSON params from Claude (women_only, pace=slow, max_price=30000, dur=2-5). Mobile 390px: mobile-search-summary, mobile-filters-button opens mobile-filter-sheet with sheet-show-trips. Dark mode & currency toggles work (INR -> $ USD; html.dark applied).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Results filter rail", "issues": ["Collapsed filter sections (Trip style, Safety & trust, Budget true-price switch, Seats available) require clicking the section header to reveal controls — expected but worth noting for QA"]},
+      {"screen": "Shortlist cards & Alerts rows", "issues": ["No data-testid='shortlist-card-*' on cards and no 'alerts-row-*' on alert rows (UI works, just missing testids described in review request)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_wayfind_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional, low priority) Add data-testid='shortlist-card-<dep_id>' to each shortlist card in /shortlist (Misc.jsx) and data-testid='alerts-row-<id>' to each saved alert row in /alerts page — the review request references these ids.",
+    "(Optional) Consider defaulting Budget / Trip style / Safety & trust sections to expanded when user hovers filter rail, or ensure they open when a corresponding URL param is present (already partly handled)."
+  ],
+  "critical_code_review_comments": [
+    "server.py: _admin_token derives from username:password; fine for internal admin but tokens never rotate — ok for demo.",
+    "search endpoint accepts arbitrary query params and passes to search_engine; good forward-compat but ensure se.search validates to avoid high-cardinality facets causing slow responses.",
+    "admin add_operator uses slugify(name) as id and 409s on dup — correct; however bio uses PERSONA_LABEL.get('', '') (empty key) which is almost always falsy, so bio always becomes 'Newly listed operator.' — intentional fallback but line is confusing.",
+    "nl_search exposes LLM errors as 502 with raw message — fine for dev; may want to sanitize for prod.",
+    "FilterRail.jsx uses a single filter-rail testid but individual filter checkboxes depend on section being open; defaultOpen only for first 4 sections — may trip up automated tests."
+  ],
+  "updated_files": ["/app/backend/tests/test_wayfind_api.py"],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "~95% (all critical flows pass; a couple of nice-to-have testids missing)"},
+  "test_credentials": "admin / wayfind2026 at /admin",
+  "seed_data_creation": "Via pytest TestAdmin: ~2 TEST_ operators + 1 TEST_ trip + 2 departures; some TEST_ leads/alerts/shortlists via API and UI. Did not touch seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "pytest suite at /app/backend/tests/test_wayfind_api.py covers all public & admin APIs including NL search. The 'card' dict keys exposed by backend use 'dep_id' and 'trip_id' (not 'id') — important when writing tests against /api/home or /api/search. Shortlist dep ids are long strings like 'bali-bali-nusa-party-waterfalls-chai-trails-292-2026-11-01' (dots not present so vote key sanitization is a no-op in practice). Vote keys stored as votes.<dep_id>.<voter>. After clear-all-filters on /search the counter resets to current total (361 after admin added 4 TEST trips vs seed 357)."
+}

@@ -1,0 +1,183 @@
+{
+  "project_name": "Wayfind",
+  "app_type": "hybrid_fullstack marketplace/search",
+  "design_philosophy": {
+    "persona": "E1: The Anti-AI Designer",
+    "vibe": "Adventurous, warm, premium — like a high-end travel magazine meets Skyscanner precision.",
+    "core_principles": [
+      "Fusion over Imitation: Swiss editorial typography + high-velocity travel marketplace UX + passport tactile details.",
+      "Tactile Authenticity: Ticket-stub cards with perforated edge cuts, dashed dividers, mint passport-stamp verified badges.",
+      "Visual Hierarchy & Breathing Room: Generous 2x spacing, 20-28px rounded containers, subtle grain textures, soft layered shadows.",
+      "Motion with Weight: Framer-motion staggered reveals, card tilt on hover, heart burst animation, flight path route arcs, respect prefers-reduced-motion."
+    ]
+  },
+  "theme": {
+    "primary_mode": "Light (Editorial Sand & Deep Teal)",
+    "supports_dark_mode": true,
+    "colors": {
+      "brand_primary": {
+        "hex": "#0B1F2A",
+        "tailwind": "bg-[#0B1F2A]",
+        "name": "Midnight Teal",
+        "usage": "Headers, primary buttons, hero contrast background, crisp typography"
+      },
+      "brand_secondary": {
+        "hex": "#FF6B4A",
+        "tailwind": "bg-[#FF6B4A]",
+        "name": "Sunset Coral",
+        "usage": "Primary CTAs, active filters, flight route arcs, deal callouts, heart bursts"
+      },
+      "accent_amber": {
+        "hex": "#FFB547",
+        "tailwind": "bg-[#FFB547]",
+        "name": "Warm Amber",
+        "usage": "Best value badges, star ratings, seats-left urgency warnings, calendar highlights"
+      },
+      "surface_cream": {
+        "hex": "#FAF6EF",
+        "tailwind": "bg-[#FAF6EF]",
+        "name": "Warm Sand",
+        "usage": "Page base background, warm card contrast, subtle section dividers"
+      },
+      "mint_verified": {
+        "hex": "#10B981",
+        "tailwind": "bg-emerald-500",
+        "name": "Passport Mint",
+        "usage": "Operator verified stamp, true-price badge, fit score match"
+      },
+      "dark_mode_surface": {
+        "hex": "#07141C",
+        "tailwind": "dark:bg-[#07141C]",
+        "name": "Deep Oceanic Night",
+        "usage": "Dark theme main canvas background"
+      },
+      "dark_mode_card": {
+        "hex": "#0F2837",
+        "tailwind": "dark:bg-[#0F2837]",
+        "name": "Teal Card Surface",
+        "usage": "Dark theme card and panel background"
+      }
+    },
+    "vibe_accents": {
+      "trekking": { "color": "#15803D", "bg": "bg-emerald-100 text-emerald-800" },
+      "party_nightlife": { "color": "#A855F7", "bg": "bg-purple-100 text-purple-800" },
+      "cultural": { "color": "#D97706", "bg": "bg-amber-100 text-amber-800" },
+      "road_trips": { "color": "#0284C7", "bg": "bg-sky-100 text-sky-800" },
+      "luxury_relaxation": { "color": "#BE185D", "bg": "bg-pink-100 text-pink-800" }
+    }
+  },
+  "typography": {
+    "headline_font": "Fraunces, Playfair Display, serif",
+    "body_font": "Inter, DM Sans, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "scale": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-serif tracking-tight leading-tight",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-serif tracking-tight",
+      "h3_card": "text-xl sm:text-2xl font-serif font-semibold",
+      "subheading": "text-base sm:text-lg font-sans text-slate-600 dark:text-slate-300",
+      "body": "text-sm sm:text-base font-sans leading-relaxed text-slate-700 dark:text-slate-200",
+      "ticket_label": "text-xs font-mono uppercase tracking-widest text-slate-500"
+    }
+  },
+  "visual_enhancers": {
+    "border_radius": "rounded-2xl lg:rounded-3xl (20px to 28px)",
+    "glassmorphism": "backdrop-blur-xl bg-white/75 dark:bg-[#0B1F2A]/80 border border-white/40 dark:border-white/10 shadow-xl",
+    "ticket_stub_effect": "relative overflow-hidden bg-white dark:bg-[#0F2837] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 before:content-[''] before:absolute before:-left-3 before:top-1/2 before:-translate-y-1/2 before:w-6 before:h-6 before:bg-[#FAF6EF] dark:before:bg-[#07141C] before:rounded-full after:content-[''] after:absolute after:-right-3 after:top-1/2 after:-translate-y-1/2 after:w-6 after:h-6 after:bg-[#FAF6EF] dark:after:bg-[#07141C] after:rounded-full",
+    "passport_stamp": "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider shadow-sm",
+    "hero_globe": "Interactive SVG / Canvas globe with rotating latitude arcs, glowing route lines from India (DEL/BOM) to global nodes (REK, KYO, DPS, HAN, NBO), animated dashed plane icon."
+  },
+  "key_components_recipes": {
+    "compact_search_bar": {
+      "description": "Glassmorphic hero search widget with 5 inputs: Where (destination), When (dates/month), Travelling As (Solo/Couple/Group size), Budget (range slider/chips), Search button",
+      "container_class": "backdrop-blur-xl bg-white/90 dark:bg-[#0B1F2A]/90 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/50 dark:border-white/10 shadow-2xl max-w-5xl mx-auto"
+    },
+    "ticket_stub_card": {
+      "elements": [
+        "Destination hero photo thumbnail with gradient overlay",
+        "Operator avatar + name + Passport-stamp Verified badge",
+        "Trip Title, Duration (e.g., 7D/6N), Travel Dates",
+        "Perforated divider (dashed border-t)",
+        "Price: Listed price vs TRUE PRICE (includes flight/taxis/food) with hover popover breakdown",
+        "Seats left visual bar (e.g. '3 seats left at this price')",
+        "Fit chip (e.g. '98% Match for Solo Backpackers')",
+        "Heart bookmark button with burst animation",
+        "Compare checkbox (adds trip to sticky compare tray)"
+      ]
+    },
+    "compare_tray": {
+      "description": "Sticky bottom dock showing up to 4 selected trips with quick removal, clear all, and 'Compare Side-by-Side' action button.",
+      "container_class": "fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-4xl bg-[#0B1F2A] text-white p-3 sm:p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 border border-teal-800"
+    },
+    "itinerary_timeline": {
+      "description": "Scroll-drawn vertical line connecting daily timeline cards (Day 1 to Day N) with expandable activity details, meals included badge, stay location pin."
+    },
+    "filter_rail_mobile_bottom_sheet": {
+      "description": "Desktop side rail / Mobile bottom sheet (Shadcn Sheet) with counts for price range, duration, vibe, Indian operator filter, flight inclusion toggle, and sticky 'Show N Trips' button."
+    }
+  },
+  "data_testid_conventions": {
+    "rule": "Mandatory kebab-case testids on all interactive elements & key figures",
+    "examples": [
+      "data-testid=\"search-bar-where-input\"",
+      "data-testid=\"search-bar-when-select\"",
+      "data-testid=\"search-bar-budget-slider\"",
+      "data-testid=\"search-bar-submit-button\"",
+      "data-testid=\"filter-vibe-trekking-checkbox\"",
+      "data-testid=\"filter-operator-select\"",
+      "data-testid=\"trip-card-price-true-popover\"",
+      "data-testid=\"trip-card-compare-checkbox\"",
+      "data-testid=\"trip-card-bookmark-button\"",
+      "data-testid=\"compare-tray-dock\"",
+      "data-testid=\"compare-now-button\"",
+      "data-testid=\"sort-tab-best\"",
+      "data-testid=\"sort-tab-cheapest\"",
+      "data-testid=\"sort-tab-soonest\"",
+      "data-testid=\"view-toggle-list\"",
+      "data-testid=\"view-toggle-map\"",
+      "data-testid=\"view-toggle-calendar\""
+    ]
+  },
+  "image_urls": {
+    "destinations": [
+      {
+        "name": "Iceland Northern Lights & Glaciers",
+        "url": "https://images.unsplash.com/photo-1504858700536-882c978a3464?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxpY2VsYW5kJTIwbm9ydGhlcm4lMjBsaWdodHMlMjBsdXh1cnklMjB0cmF2ZWwlMjBzY2VuZXJ5fGVufDB8fHx8MTc5MTM5MTA0NXww&ixlib=rb-4.1.0&q=85",
+        "vibe": "Aurora / Winter Adventure"
+      },
+      {
+        "name": "Japan Kyoto Pagoda & Cherry Blossoms",
+        "url": "https://images.unsplash.com/photo-1761141954476-2921e2e43e99?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxqYXBhbiUyMGt5b3RvJTIwY2hlcnJ5JTIwYmxvc3NvbSUyMGF1dHVtbiUyMHRyYXZlbCUyMHBob3RvfGVufDB8fHx8MTc5MTM5MTA0NXww&ixlib=rb-4.1.0&q=85",
+        "vibe": "Cultural / Heritage"
+      },
+      {
+        "name": "Bali Tropical Resort & Sunset Palms",
+        "url": "https://images.unsplash.com/photo-1616484173745-07f25fd0547f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxiYWxpJTIwdHJvcGljYWwlMjBiZWFjaCUyMGx1eHVyeSUyMHJlc29ydCUyMHN1bnNldHxlbnwwfHx8fDE3OTEzOTEwNDl8MA&ixlib=rb-4.1.0&q=85",
+        "vibe": "Beach / Relaxation"
+      },
+      {
+        "name": "Himalayan Mountain Trekking Group",
+        "url": "https://images.unsplash.com/photo-1766946162224-412e5c76a299?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxncm91cCUyMHRyYXZlbCUyMGJhY2twYWNrZXJzJTIwbW91bnRhaW5zJTIwbGFuZHNjYXBlJTIwYWR2ZW50dXJlfGVufDB8fHx8MTc5MTM5MTA0NXww&ixlib=rb-4.1.0&q=85",
+        "vibe": "High Altitude Expedition"
+      }
+    ],
+    "travelers_avatars": [
+      {
+        "name": "Arjun Sharma (Verified Backpacker)",
+        "url": "https://images.unsplash.com/photo-1598966739654-5e9a252d8c32?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGluZGlhbiUyMHRyYXZlbGVyJTIwYmFja3BhY2tlciUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwwfHx8fDE3ODk2ODcyMTl8MA&ixlib=rb-4.1.0&q=85"
+      },
+      {
+        "name": "Priya Nair (Trip Lead)",
+        "url": "https://images.unsplash.com/photo-1549407246-56b3a6a2a4ec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwzfHx5b3VuZyUyMGluZGlhbiUyMHRyYXZlbGVyJTIwYmFja3BhY2tlciUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwwfHx8fDE3ODk2ODcyMTl8MA&ixlib=rb-4.1.0&q=85"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Ensure all interactive components have proper data-testid attributes.",
+    "Implement the compact hero search bar with glassmorphism and smooth responsive collapse.",
+    "Use ticket-stub styling for search result cards with perforated inner cutouts.",
+    "Support dark and light modes cleanly using Tailwind dark: classes and CSS root variables.",
+    "Verify sticky Compare Dock appears smoothly when 1 to 4 trips are checked.",
+    "Add Framer Motion animations for staggered card reveals, tab switching, and heart bursts."
+  ]
+},
+overwrite:true,path:

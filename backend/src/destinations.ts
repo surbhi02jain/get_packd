@@ -1,0 +1,170 @@
+import type { Destination } from "./types.js";
+
+// Destinations trips are grouped under. The first block keeps the original hand-written details (meeting point, places,
+// highlights, photo); the rest are plain map entries whose tile photo comes from the first imported trip that goes there.
+export const DESTINATIONS: Destination[] = [
+  {slug: "kashmir", name: "Kashmir", region: "Jammu & Kashmir", countries: ["India"], dtype: "domestic", climate: ["snow", "mountains"], lat: 34.08, lng: 74.8, meeting: "Srinagar Airport (SXR), 10:00 AM", end: "Srinagar Airport", places: ["Srinagar", "Gulmarg", "Pahalgam", "Sonamarg"], highlights: ["Shikara ride on Dal Lake", "Gulmarg gondola & snow meadows", "Pahalgam & Betaab Valley", "Sonamarg glacier walk", "Old city wazwan food walk"], image: "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "spiti", name: "Spiti Valley", region: "Himachal Pradesh", countries: ["India"], dtype: "domestic", climate: ["mountains", "snow"], lat: 32.25, lng: 78.03, meeting: "Shimla Old Bus Stand, 7:00 AM", end: "Manali Mall Road", places: ["Kaza", "Chitkul", "Key", "Chandratal", "Langza"], highlights: ["Chitkul, the last village", "Key Monastery at sunrise", "Langza fossil village", "Chandratal lake camp", "Pin Valley drive"], image: "https://images.unsplash.com/photo-1721165578334-e1da5ebd0fc3?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "ladakh", name: "Ladakh", region: "Ladakh", countries: ["India"], dtype: "domestic", climate: ["mountains", "snow", "desert"], lat: 34.15, lng: 77.58, meeting: "Leh Airport (IXL), 9:00 AM", end: "Leh Airport", places: ["Leh", "Nubra", "Pangong", "Hemis"], highlights: ["Acclimatise in Leh old town", "Khardung La crossing", "Nubra dunes & Bactrian camels", "Pangong Tso sunrise", "Hemis & Thiksey monasteries"], image: "https://images.unsplash.com/photo-1593118845043-359e5f628214?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "kerala", name: "Kerala", region: "Kerala", countries: ["India"], dtype: "domestic", climate: ["beach", "jungle"], lat: 9.5, lng: 76.34, meeting: "Kochi Airport (COK), 11:00 AM", end: "Trivandrum Airport", places: ["Kochi", "Munnar", "Alleppey", "Varkala"], highlights: ["Fort Kochi heritage walk", "Munnar tea estates", "Alleppey houseboat night", "Varkala cliff sunset", "Kathakali evening"], image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "rajasthan", name: "Rajasthan", region: "Rajasthan", countries: ["India"], dtype: "domestic", climate: ["desert", "city"], lat: 26.91, lng: 72.9, meeting: "Jaipur Railway Station, 10:00 AM", end: "Jaisalmer Railway Station", places: ["Jaipur", "Jodhpur", "Jaisalmer", "Udaipur"], highlights: ["Amber Fort & Pink City", "Jodhpur blue lanes", "Jaisalmer golden fort", "Sam dunes camp & folk night", "Udaipur lake palaces"], image: "https://images.unsplash.com/photo-1605944087400-8a5992d7b066?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "meghalaya", name: "Meghalaya", region: "North East", countries: ["India"], dtype: "domestic", climate: ["jungle", "mountains"], lat: 25.47, lng: 91.37, meeting: "Guwahati Airport (GAU), 9:00 AM", end: "Guwahati Airport", places: ["Shillong", "Cherrapunji", "Dawki", "Mawlynnong"], highlights: ["Double-decker root bridge hike", "Dawki crystal river", "Mawlynnong village", "Shillong cafe crawl", "Nohkalikai falls"], image: "https://images.unsplash.com/photo-1742494267580-e026d3737f65?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "andaman", name: "Andaman", region: "Andaman & Nicobar", countries: ["India"], dtype: "domestic", climate: ["beach"], lat: 11.99, lng: 92.98, meeting: "Port Blair Airport (IXZ), 11:00 AM", end: "Port Blair Airport", places: ["Port Blair", "Havelock", "Neil Island"], highlights: ["Cellular Jail light show", "Radhanagar beach", "Elephant beach snorkel", "Neil Island cycling", "Bioluminescence kayak"], image: "https://images.unsplash.com/photo-1586359716568-3e1907e4cf9f?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "goa", name: "Goa", region: "Goa", countries: ["India"], dtype: "domestic", climate: ["beach"], lat: 15.3, lng: 74.0, meeting: "Madgaon Station, 12:00 PM", end: "Goa Mopa Airport", places: ["Panjim", "Assagao", "Palolem", "Divar"], highlights: ["Fontainhas Latin quarter walk", "Divar island cycling", "Palolem kayak", "Assagao cafe trail", "Sunset cruise"], image: "https://images.unsplash.com/photo-1605015239078-95f963a8b35c?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 0},
+  {slug: "nepal", name: "Nepal", region: "Himalaya", countries: ["Nepal"], dtype: "international", climate: ["mountains", "snow"], lat: 28.2, lng: 83.98, meeting: "Kathmandu Thamel Chowk, 8:00 AM", end: "Kathmandu Thamel", places: ["Kathmandu", "Pokhara", "Lukla", "Namche"], highlights: ["Swayambhunath at dusk", "Lukla flight", "Namche Bazaar", "Tengboche monastery", "Sunrise over the Annapurnas"], image: "https://images.unsplash.com/photo-1518002054494-3a6f94352e9d?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 12000},
+  {slug: "bhutan", name: "Bhutan", region: "Himalaya", countries: ["Bhutan"], dtype: "international", climate: ["mountains"], lat: 27.47, lng: 89.64, meeting: "Paro Airport, 10:00 AM", end: "Paro Airport", places: ["Paro", "Thimphu", "Punakha"], highlights: ["Tiger's Nest hike", "Punakha Dzong", "Dochula pass 108 chortens", "Thimphu weekend market", "Hot stone bath"], image: "https://images.unsplash.com/photo-1700040005384-1fc87f522053?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 18000},
+  {slug: "bali", name: "Bali", region: "Indonesia", countries: ["Indonesia"], dtype: "international", climate: ["beach", "jungle"], lat: -8.4, lng: 115.19, meeting: "Denpasar Airport (DPS), 1:00 PM", end: "Denpasar Airport", places: ["Ubud", "Canggu", "Nusa Penida", "Uluwatu"], highlights: ["Ubud rice terraces", "Mt Batur sunrise trek", "Nusa Penida cliffs", "Uluwatu fire dance", "Canggu surf lesson"], image: "https://images.unsplash.com/photo-1616484173745-07f25fd0547f?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 32000},
+  {slug: "vietnam", name: "Vietnam", region: "South-East Asia", countries: ["Vietnam"], dtype: "international", climate: ["city", "beach"], lat: 21.03, lng: 105.85, meeting: "Hanoi Old Quarter, 2:00 PM", end: "Ho Chi Minh City", places: ["Hanoi", "Ha Long", "Hoi An", "Ha Giang", "Saigon"], highlights: ["Hanoi street food crawl", "Ha Long Bay overnight cruise", "Hoi An lantern night", "Ha Giang loop", "Cu Chi tunnels"], image: "https://images.unsplash.com/photo-1643029891412-92f9a81a8c16?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 28000},
+  {slug: "thailand", name: "Thailand", region: "South-East Asia", countries: ["Thailand"], dtype: "international", climate: ["beach", "city"], lat: 8.08, lng: 98.9, meeting: "Phuket Airport (HKT), 12:00 PM", end: "Bangkok Suvarnabhumi", places: ["Phuket", "Krabi", "Phi Phi", "Bangkok", "Chiang Mai"], highlights: ["Phi Phi island boat day", "Railay climbing beach", "Bangkok night markets", "Chiang Mai temples", "Thai cooking class"], image: "https://images.unsplash.com/photo-1672933354004-3cbd9874f099?auto=format&fit=crop&w=1400&q=75", visa_easy: true, flight_est: 24000},
+  {slug: "japan", name: "Japan", region: "East Asia", countries: ["Japan"], dtype: "international", climate: ["city", "snow"], lat: 35.0, lng: 135.77, meeting: "Tokyo Narita T1 Arrivals, 10:00 AM", end: "Osaka Kansai Airport", places: ["Tokyo", "Hakone", "Kyoto", "Nara", "Osaka"], highlights: ["Shibuya & Asakusa", "Hakone onsen ryokan", "Kyoto maple temples", "Nara deer park", "Osaka Dotonbori food"], image: "https://images.unsplash.com/photo-1761141954476-2921e2e43e99?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 58000},
+  {slug: "georgia", name: "Georgia", region: "Caucasus", countries: ["Georgia"], dtype: "international", climate: ["mountains", "city"], lat: 41.72, lng: 44.79, meeting: "Tbilisi Airport, 9:00 AM", end: "Tbilisi Airport", places: ["Tbilisi", "Kazbegi", "Sighnaghi", "Mestia"], highlights: ["Tbilisi sulphur baths", "Gergeti Trinity church", "Kakheti wine tasting", "Ananuri fortress", "Supra feast night"], image: "https://images.unsplash.com/photo-1594766722982-fb4cd139ee7c?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 38000},
+  {slug: "kyrgyzstan", name: "Kyrgyzstan", region: "Central Asia", countries: ["Kyrgyzstan"], dtype: "international", climate: ["mountains"], lat: 42.87, lng: 74.59, meeting: "Bishkek Manas Airport, 8:00 AM", end: "Bishkek Manas Airport", places: ["Bishkek", "Karakol", "Song Kul", "Issyk Kul"], highlights: ["Ala Archa gorge hike", "Song Kul yurt stay", "Horse trek with nomads", "Issyk Kul shores", "Karakol market"], image: "https://images.unsplash.com/photo-1642514805906-a8307e41c3d7?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 36000},
+  {slug: "turkey", name: "Turkey", region: "Anatolia", countries: ["Turkey"], dtype: "international", climate: ["city", "beach"], lat: 38.64, lng: 34.83, meeting: "Istanbul Airport (IST), 11:00 AM", end: "Antalya Airport", places: ["Istanbul", "Cappadocia", "Pamukkale", "Fethiye"], highlights: ["Hagia Sophia & Grand Bazaar", "Cappadocia balloon sunrise", "Pamukkale travertines", "Bosphorus cruise", "Fethiye blue lagoon"], image: "https://images.unsplash.com/photo-1695415683093-ae5f213ea898?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 42000},
+  {slug: "iceland", name: "Iceland", region: "Nordics", countries: ["Iceland"], dtype: "international", climate: ["snow"], lat: 64.15, lng: -21.94, meeting: "Keflavik Airport, 9:00 AM", end: "Keflavik Airport", places: ["Reykjavik", "Vik", "Jokulsarlon", "Golden Circle"], highlights: ["Golden Circle geysers", "Black sand beach at Vik", "Glacier lagoon", "Ice cave walk", "Aurora hunt"], image: "https://images.unsplash.com/photo-1504858700536-882c978a3464?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 85000},
+  {slug: "morocco", name: "Morocco", region: "North Africa", countries: ["Morocco"], dtype: "international", climate: ["desert", "city"], lat: 31.63, lng: -7.99, meeting: "Marrakech Jemaa el-Fna, 10:00 AM", end: "Fes Medina", places: ["Marrakech", "Atlas", "Merzouga", "Chefchaouen", "Fes"], highlights: ["Marrakech souks", "Atlas mountain villages", "Sahara camel camp", "Chefchaouen blue city", "Fes tanneries"], image: "https://images.unsplash.com/photo-1569383746724-6f1b882b8f46?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 62000},
+  {slug: "tanzania", name: "Tanzania", region: "East Africa", countries: ["Tanzania"], dtype: "international", climate: ["jungle", "beach"], lat: -2.33, lng: 34.83, meeting: "Kilimanjaro Airport (JRO), 12:00 PM", end: "Zanzibar Airport", places: ["Arusha", "Serengeti", "Ngorongoro", "Zanzibar"], highlights: ["Serengeti game drives", "Ngorongoro crater", "Maasai village visit", "Stone Town spice tour", "Zanzibar dhow sunset"], image: "https://images.unsplash.com/photo-1526226128118-9ef71fc2f34b?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 55000},
+  {slug: "peru", name: "Peru", region: "South America", countries: ["Peru"], dtype: "international", climate: ["mountains"], lat: -13.53, lng: -71.97, meeting: "Cusco Plaza de Armas, 9:00 AM", end: "Lima Airport", places: ["Cusco", "Sacred Valley", "Machu Picchu", "Rainbow Mountain"], highlights: ["Cusco acclimatisation", "Sacred Valley markets", "Inca Trail", "Machu Picchu sunrise", "Rainbow Mountain"], image: "https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1400&q=75", visa_easy: false, flight_est: 120000},
+  {slug: "switzerland", name: "Switzerland & Alps", region: "Europe", countries: ["Switzerland", "Austria", "Germany"], dtype: "international", climate: ["snow", "mountains", "city"], lat: 46.68, lng: 7.86, meeting: "Zurich HB, 10:00 AM", end: "Munich Airport", places: ["Zurich", "Lucerne", "Interlaken", "Salzburg", "Munich"], highlights: ["Lucerne old town", "Jungfraujoch top of Europe", "Interlaken lakes", "Salzburg Christmas market", "Munich beer halls"], image: "https://images.pexels.com/photos/27980949/pexels-photo-27980949.jpeg?auto=compress&cs=tinysrgb&w=1400", visa_easy: false, flight_est: 65000},
+  {slug: "himachal", name: "Himachal", region: "Himachal Pradesh", countries: ["India"], dtype: "domestic", climate: ["mountains", "snow"], lat: 32.24, lng: 77.19, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "uttarakhand", name: "Uttarakhand", region: "Uttarakhand", countries: ["India"], dtype: "domestic", climate: ["mountains", "snow"], lat: 30.07, lng: 79.02, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "sikkim", name: "Sikkim & Darjeeling", region: "Sikkim", countries: ["India"], dtype: "domestic", climate: ["mountains", "snow"], lat: 27.33, lng: 88.61, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "northeast", name: "Arunachal & North East", region: "North East", countries: ["India"], dtype: "domestic", climate: ["mountains", "jungle"], lat: 27.1, lng: 93.6, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "karnataka", name: "Karnataka", region: "Karnataka", countries: ["India"], dtype: "domestic", climate: ["jungle", "beach"], lat: 14.5, lng: 75.7, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "tamilnadu", name: "Tamil Nadu & Pondicherry", region: "Tamil Nadu", countries: ["India"], dtype: "domestic", climate: ["beach", "mountains"], lat: 11.1, lng: 78.6, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "maharashtra", name: "Maharashtra", region: "Maharashtra", countries: ["India"], dtype: "domestic", climate: ["mountains", "beach"], lat: 19.1, lng: 73.7, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "gujarat", name: "Gujarat", region: "Gujarat", countries: ["India"], dtype: "domestic", climate: ["desert", "city"], lat: 22.3, lng: 71.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "madhyapradesh", name: "Madhya Pradesh", region: "Madhya Pradesh", countries: ["India"], dtype: "domestic", climate: ["jungle", "city"], lat: 23.5, lng: 78.5, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "chhattisgarh", name: "Chhattisgarh", region: "Chhattisgarh", countries: ["India"], dtype: "domestic", climate: ["jungle"], lat: 19.1, lng: 81.95, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "uttarpradesh", name: "Varanasi & Uttar Pradesh", region: "Uttar Pradesh", countries: ["India"], dtype: "domestic", climate: ["city"], lat: 26.8, lng: 80.9, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "punjab", name: "Amritsar & Punjab", region: "Punjab", countries: ["India"], dtype: "domestic", climate: ["city"], lat: 31.63, lng: 74.87, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "lakshadweep", name: "Lakshadweep", region: "Lakshadweep", countries: ["India"], dtype: "domestic", climate: ["beach"], lat: 10.57, lng: 72.64, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "eastindia", name: "Odisha & Bengal", region: "East India", countries: ["India"], dtype: "domestic", climate: ["beach", "jungle"], lat: 21.9, lng: 87.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "andhra", name: "Andhra & Telangana", region: "Andhra Pradesh", countries: ["India"], dtype: "domestic", climate: ["mountains", "city"], lat: 16.5, lng: 80.6, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: true, flight_est: 0},
+  {slug: "srilanka", name: "Sri Lanka", region: "South Asia", countries: ["Sri Lanka"], dtype: "international", climate: ["beach", "jungle"], lat: 7.87, lng: 80.77, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "maldives", name: "Maldives", region: "South Asia", countries: ["Maldives"], dtype: "international", climate: ["beach"], lat: 3.2, lng: 73.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "dubai", name: "Dubai & UAE", region: "Middle East", countries: ["United Arab Emirates"], dtype: "international", climate: ["desert", "city"], lat: 25.2, lng: 55.27, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "oman", name: "Oman", region: "Middle East", countries: ["Oman"], dtype: "international", climate: ["desert"], lat: 23.6, lng: 58.4, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "jordan", name: "Jordan", region: "Middle East", countries: ["Jordan"], dtype: "international", climate: ["desert"], lat: 30.3, lng: 35.4, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "egypt", name: "Egypt", region: "North Africa", countries: ["Egypt"], dtype: "international", climate: ["desert", "city"], lat: 30.0, lng: 31.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "singapore", name: "Singapore & Malaysia", region: "South-East Asia", countries: ["Singapore", "Malaysia"], dtype: "international", climate: ["city", "beach"], lat: 3.1, lng: 101.7, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "cambodia", name: "Cambodia & Laos", region: "South-East Asia", countries: ["Cambodia", "Laos"], dtype: "international", climate: ["jungle", "city"], lat: 13.4, lng: 103.9, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "philippines", name: "Philippines", region: "South-East Asia", countries: ["Philippines"], dtype: "international", climate: ["beach"], lat: 12.9, lng: 121.8, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "korea", name: "South Korea", region: "East Asia", countries: ["South Korea"], dtype: "international", climate: ["city"], lat: 37.57, lng: 126.98, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "china", name: "China", region: "East Asia", countries: ["China"], dtype: "international", climate: ["city", "mountains"], lat: 35.0, lng: 103.0, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "hongkong", name: "Hong Kong & Macau", region: "East Asia", countries: ["Hong Kong"], dtype: "international", climate: ["city"], lat: 22.3, lng: 114.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "tibet", name: "Tibet & Kailash", region: "Himalaya", countries: ["China"], dtype: "international", climate: ["mountains", "snow"], lat: 30.0, lng: 91.1, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "kazakhstan", name: "Kazakhstan", region: "Central Asia", countries: ["Kazakhstan"], dtype: "international", climate: ["mountains", "city"], lat: 43.2, lng: 76.9, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "uzbekistan", name: "Uzbekistan", region: "Central Asia", countries: ["Uzbekistan"], dtype: "international", climate: ["city", "desert"], lat: 41.3, lng: 69.3, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "azerbaijan", name: "Azerbaijan", region: "Caucasus", countries: ["Azerbaijan"], dtype: "international", climate: ["city", "mountains"], lat: 40.4, lng: 49.87, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "armenia", name: "Armenia", region: "Caucasus", countries: ["Armenia"], dtype: "international", climate: ["mountains"], lat: 40.18, lng: 44.5, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "russia", name: "Russia", region: "Europe", countries: ["Russia"], dtype: "international", climate: ["snow", "city"], lat: 55.75, lng: 37.6, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "nordics", name: "Nordics & Lapland", region: "Europe", countries: ["Norway", "Finland", "Sweden"], dtype: "international", climate: ["snow"], lat: 67.0, lng: 20.0, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "uk", name: "UK & Ireland", region: "Europe", countries: ["United Kingdom", "Ireland"], dtype: "international", climate: ["city"], lat: 54.0, lng: -2.0, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "europe", name: "Europe", region: "Europe", countries: ["Europe"], dtype: "international", climate: ["city", "mountains"], lat: 47.5, lng: 10.5, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "kenya", name: "Kenya", region: "East Africa", countries: ["Kenya"], dtype: "international", climate: ["jungle"], lat: -1.4, lng: 35.1, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "southafrica", name: "South Africa", region: "Africa", countries: ["South Africa"], dtype: "international", climate: ["jungle", "city"], lat: -33.9, lng: 18.4, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "mauritius", name: "Mauritius", region: "Indian Ocean", countries: ["Mauritius"], dtype: "international", climate: ["beach"], lat: -20.2, lng: 57.5, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "seychelles", name: "Seychelles", region: "Indian Ocean", countries: ["Seychelles"], dtype: "international", climate: ["beach"], lat: -4.68, lng: 55.48, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "australia", name: "Australia", region: "Oceania", countries: ["Australia"], dtype: "international", climate: ["city", "beach"], lat: -33.87, lng: 151.2, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "newzealand", name: "New Zealand", region: "Oceania", countries: ["New Zealand"], dtype: "international", climate: ["mountains"], lat: -41.3, lng: 174.8, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "usa", name: "USA", region: "North America", countries: ["United States"], dtype: "international", climate: ["city"], lat: 39.8, lng: -98.6, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "canada", name: "Canada", region: "North America", countries: ["Canada"], dtype: "international", climate: ["mountains", "snow"], lat: 56.1, lng: -106.3, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "southamerica", name: "South America", region: "South America", countries: ["Brazil", "Argentina", "Chile"], dtype: "international", climate: ["mountains", "jungle"], lat: -15.8, lng: -58.0, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+  {slug: "antarctica", name: "Antarctica", region: "Antarctica", countries: ["Antarctica"], dtype: "international", climate: ["snow"], lat: -75.0, lng: 0.0, meeting: "", end: "", places: [], highlights: [], image: null, visa_easy: false, flight_est: 0},
+];
+
+export const DEST_BY_SLUG = new Map(DESTINATIONS.map((d) => [d.slug, d]));
+
+// Place names that identify each destination in a trip title, location or URL.
+const KEYWORDS: Record<string, string[]> = {
+  kashmir: ["kashmir", "srinagar", "gulmarg", "pahalgam", "sonamarg", "gurez", "great lakes", "tarsar"],
+  spiti: ["spiti", "kaza", "chandratal", "kinnaur", "chitkul", "kalpa"],
+  ladakh: ["ladakh", "leh", "nubra", "pangong", "zanskar", "chadar", "hanle", "umling", "markha"],
+  kerala: ["kerala", "munnar", "alleppey", "wayanad", "varkala", "thekkady", "kovalam", "vagamon"],
+  rajasthan: ["rajasthan", "jaipur", "jodhpur", "jaisalmer", "udaipur", "pushkar", "mount abu", "ranthambore", "bikaner", "kumbhalgarh", "jawai"],
+  meghalaya: ["meghalaya", "shillong", "cherrapunji", "dawki", "mawlynnong"],
+  andaman: ["andaman", "andamans", "havelock", "port blair", "neil island"],
+  goa: ["goa"],
+  nepal: ["nepal", "kathmandu", "pokhara", "everest", "ebc", "annapurna", "mustang", "langtang", "manaslu"],
+  bhutan: ["bhutan", "paro", "thimphu", "punakha"],
+  bali: ["bali", "ubud", "nusa penida", "indonesia", "komodo", "lombok"],
+  vietnam: ["vietnam", "hanoi", "ha long", "hoi an", "ha giang", "saigon", "da nang"],
+  thailand: ["thailand", "phuket", "krabi", "bangkok", "chiang mai", "phi phi", "pattaya", "koh samui", "thai"],
+  japan: ["japan", "tokyo", "kyoto", "osaka"],
+  georgia: ["georgia", "tbilisi", "kazbegi"],
+  kyrgyzstan: ["kyrgyzstan", "bishkek"],
+  turkey: ["turkey", "turkiye", "istanbul", "cappadocia"],
+  iceland: ["iceland", "reykjavik"],
+  morocco: ["morocco", "marrakech"],
+  tanzania: ["tanzania", "serengeti", "zanzibar", "kilimanjaro"],
+  peru: ["peru", "machu picchu"],
+  switzerland: ["switzerland", "swiss", "zurich", "interlaken"],
+  himachal: ["himachal", "manali", "kasol", "kheerganga", "jibhi", "tirthan", "shimla", "dharamshala", "dharamsala", "mcleodganj", "mcleod ganj", "bir billing", "triund", "hampta", "parvati valley", "dalhousie", "kullu", "sissu", "sar pass", "bhrigu", "buran ghati", "tosh", "shangarh", "barot", "khajjiar", "bir"],
+  uttarakhand: ["uttarakhand", "rishikesh", "kedarnath", "valley of flowers", "chopta", "tungnath", "auli", "nainital", "mussoorie", "har ki dun", "dayara", "brahmatal", "kuari pass", "roopkund", "nag tibba", "badrinath", "char dham", "chardham", "chakrata", "kanatal", "lansdowne", "jim corbett", "corbett", "munsiyari", "haridwar", "pangarchulla", "rupin pass", "kedartal", "ali bedni", "phulara", "gaumukh", "yulla kanda", "binsar", "mukteshwar", "landour", "hemkund", "do dham", "adi kailash", "om parvat", "pindari", "madmaheshwar", "rudranath", "khait parvat", "kafni", "kedartal trek", "aancha top", "benog tibba", "deoriatal", "chandrashila", "dodital", "darwa pass", "gulabikantha", "vasuki tal", "bali pass", "bagini", "nanda devi", "satopanth", "kedarkantha"],
+  sikkim: ["sikkim", "gangtok", "darjeeling", "pelling", "lachung", "gurudongmar", "sandakphu", "goechala", "kalimpong", "zuluk", "dzongri"],
+  northeast: ["arunachal", "tawang", "nagaland", "hornbill", "assam", "kaziranga", "ziro", "mechuka", "manipur", "mizoram", "tripura", "majuli", "dzukou", "north east", "northeast"],
+  karnataka: ["karnataka", "hampi", "coorg", "gokarna", "chikmagalur", "chikkamagaluru", "kudremukh", "dandeli", "mysore", "badami", "netravati", "kodachadri", "udupi", "sakleshpur", "jog falls", "kumara parvatha", "murudeshwar", "kabini"],
+  tamilnadu: ["tamil nadu", "ooty", "kodaikanal", "pondicherry", "puducherry", "rameshwaram", "rameswaram", "madurai", "kanyakumari", "auroville", "yercaud", "valparai", "mahabalipuram", "dhanushkodi", "coonoor", "kolukkumalai"],
+  maharashtra: ["maharashtra", "alibaug", "bhandardara", "lonavala", "kalsubai", "harishchandragad", "rajmachi", "sandhan", "igatpuri", "mahabaleshwar", "tarkarli", "konkan", "matheran", "malshej", "raigad", "kaas", "nashik", "jyotirlinga", "bhimashankar", "trimbakeshwar", "ajanta", "ellora", "sahyadri", "lohagad", "visapur", "torna", "rajgad", "devkund", "kashid", "pawna", "panchgani", "tadoba", "ratangad", "andharban", "harihar", "karjat"],
+  gujarat: ["gujarat", "kutch", "rann of kutch", "rann utsav", "gir", "dwarka", "somnath", "saputara", "statue of unity"],
+  madhyapradesh: ["madhya pradesh", "khajuraho", "pachmarhi", "bandhavgarh", "kanha", "orchha", "ujjain", "omkareshwar", "gwalior", "mandu", "pench"],
+  chhattisgarh: ["chhattisgarh", "bastar", "chitrakote"],
+  uttarpradesh: ["varanasi", "ayodhya", "agra", "taj mahal", "mathura", "vrindavan", "lucknow", "prayagraj", "kashi", "golden triangle"],
+  punjab: ["amritsar", "punjab", "golden temple"],
+  lakshadweep: ["lakshadweep"],
+  eastindia: ["odisha", "puri", "konark", "sundarban", "sundarbans", "west bengal", "dooars"],
+  andhra: ["andhra", "telangana", "araku", "vizag", "visakhapatnam", "gandikota", "srisailam", "tirupati", "lambasingi"],
+  srilanka: ["sri lanka", "srilanka", "colombo", "ella"],
+  maldives: ["maldives"],
+  dubai: ["dubai", "abu dhabi", "uae"],
+  oman: ["oman", "muscat"],
+  jordan: ["jordan", "petra"],
+  egypt: ["egypt", "cairo"],
+  singapore: ["singapore", "malaysia", "kuala lumpur", "langkawi"],
+  cambodia: ["cambodia", "angkor", "laos", "siem reap"],
+  philippines: ["philippines", "palawan", "el nido"],
+  korea: ["south korea", "korea", "seoul"],
+  china: ["china", "beijing", "shanghai"],
+  hongkong: ["hong kong", "hongkong", "macau"],
+  tibet: ["tibet", "lhasa", "kailash", "mansarovar"],
+  kazakhstan: ["kazakhstan", "almaty"],
+  uzbekistan: ["uzbekistan", "samarkand", "tashkent"],
+  azerbaijan: ["azerbaijan", "baku"],
+  armenia: ["armenia", "yerevan"],
+  russia: ["russia", "moscow", "murmansk", "baikal", "st petersburg"],
+  nordics: ["norway", "finland", "lapland", "sweden", "denmark", "tromso", "lofoten", "scandinavia", "northern lights"],
+  uk: ["united kingdom", "england", "scotland", "london", "ireland"],
+  europe: ["europe", "italy", "france", "spain", "greece", "paris", "amsterdam", "prague", "budapest", "vienna", "portugal", "croatia", "santorini", "amalfi", "germany", "christmas market", "austria", "netherlands", "balkans", "rome", "barcelona", "dolomites", "mont blanc"],
+  kenya: ["kenya", "masai mara", "maasai mara"],
+  southafrica: ["south africa", "cape town", "kruger"],
+  mauritius: ["mauritius"],
+  seychelles: ["seychelles"],
+  australia: ["australia", "sydney", "melbourne"],
+  newzealand: ["new zealand"],
+  usa: ["usa", "america", "new york", "alaska", "hawaii"],
+  canada: ["canada", "banff"],
+  southamerica: ["south america", "brazil", "argentina", "patagonia", "chile", "bolivia", "colombia"],
+  antarctica: ["antarctica"],
+};
+
+const MATCHERS = Object.entries(KEYWORDS).flatMap(([slug, words]) =>
+  words.map((w) => ({ slug, len: w.length, re: new RegExp(`(^|[^a-z])${w.replace(/ /g, "[\\s-]+")}($|[^a-z])`) })));
+
+/**
+ * Picks the destination a trip belongs to. Texts are tried in order (title first); within a text the place named
+ * earliest wins, so "Spiti Valley from Manali" is Spiti. Returns null when no known place is named.
+ */
+export function matchDestination(...texts: (string | null | undefined)[]): Destination | null {
+  for (const raw of texts) {
+    if (!raw) continue;
+    const text = raw.toLowerCase();
+    let best: { slug: string; at: number; len: number } | null = null;
+    for (const m of MATCHERS) {
+      const at = text.search(m.re);
+      if (at < 0) continue;
+      if (!best || at < best.at || (at === best.at && m.len > best.len)) best = { slug: m.slug, at, len: m.len };
+    }
+    if (best) return DEST_BY_SLUG.get(best.slug) ?? null;
+  }
+  return null;
+}

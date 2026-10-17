@@ -1,0 +1,387 @@
+{
+ "fetched_at": "2026-10-13T16:59:36.515Z",
+ "source": "qoruz",
+ "accounts": {
+  "one-in-the-orange-jacket": {
+   "handle": "@oneintheorangejacket",
+   "followers": 29278,
+   "source": "qoruz",
+   "as_of": "2026-09-19T06:34:05.000Z",
+   "fetched_at": "2026-10-13T16:57:31.414Z"
+  },
+  "justwravel": {
+   "handle": "@justwravel",
+   "followers": 350037,
+   "source": "qoruz",
+   "as_of": "2026-09-15T05:41:22.000Z",
+   "fetched_at": "2026-10-13T16:57:38.851Z"
+  },
+  "bhatakna-tours-travels": {
+   "handle": "@bhatakna",
+   "followers": 85829,
+   "source": "qoruz",
+   "as_of": "2026-09-17T10:22:06.000Z",
+   "fetched_at": "2026-10-13T16:57:48.143Z"
+  },
+  "firgun-travels": {
+   "handle": "@firguntravels",
+   "followers": 22573,
+   "source": "qoruz",
+   "as_of": "2026-09-18T10:26:41.000Z",
+   "fetched_at": "2026-10-13T16:58:07.698Z"
+  },
+  "trek-the-himalayas": {
+   "handle": "@trekthehimalayas",
+   "followers": 167510,
+   "source": "qoruz",
+   "as_of": "2026-09-15T07:16:29.000Z",
+   "fetched_at": "2026-10-13T16:58:11.382Z"
+  },
+  "trekup-india": {
+   "handle": "@trekupindia",
+   "followers": 47262,
+   "source": "qoruz",
+   "as_of": "2026-09-19T18:22:14.000Z",
+   "fetched_at": "2026-10-13T16:58:24.287Z"
+  },
+  "hikerwolf": {
+   "handle": "@hikerwolf",
+   "followers": 70139,
+   "source": "qoruz",
+   "as_of": "2026-09-15T13:31:21.000Z",
+   "fetched_at": "2026-10-13T16:58:26.232Z"
+  },
+  "the-searching-souls": {
+   "handle": "@thesearchingsouls",
+   "followers": 109543,
+   "source": "qoruz",
+   "as_of": "2026-09-16T19:55:56.000Z",
+   "fetched_at": "2026-10-13T16:58:31.868Z"
+  },
+  "lacadives": {
+   "handle": "@lacadives",
+   "followers": 14185,
+   "source": "qoruz",
+   "as_of": "2026-09-18T11:30:41.000Z",
+   "fetched_at": "2026-10-13T16:58:49.200Z"
+  },
+  "wovoyage": {
+   "handle": "@wovoyage",
+   "followers": 183492,
+   "source": "qoruz",
+   "as_of": "2026-09-16T03:06:21.000Z",
+   "fetched_at": "2026-10-13T16:59:03.328Z"
+  },
+  "f5-escapes": {
+   "handle": "@f5escapes",
+   "followers": 7726,
+   "source": "qoruz",
+   "as_of": "2026-09-15T05:42:08.000Z",
+   "fetched_at": "2026-10-13T16:59:06.958Z"
+  },
+  "the-flapper-life": {
+   "handle": "@theflapperlife",
+   "followers": 25721,
+   "source": "qoruz",
+   "as_of": "2026-09-18T11:20:28.000Z",
+   "fetched_at": "2026-10-13T16:59:12.285Z"
+  },
+  "zostel": {
+   "handle": "@zostel",
+   "followers": 934961,
+   "source": "qoruz",
+   "as_of": "2026-09-15T16:31:57.000Z",
+   "fetched_at": "2026-10-13T16:59:14.258Z"
+  },
+  "the-hosteller": {
+   "handle": "@thehosteller",
+   "followers": 664880,
+   "source": "qoruz",
+   "as_of": "2026-09-15T05:32:12.000Z",
+   "fetched_at": "2026-10-13T16:59:16.121Z"
+  },
+  "tripoto": {
+   "handle": "@tripotocommunity",
+   "followers": 1054688,
+   "source": "qoruz",
+   "as_of": "2026-09-15T13:41:33.000Z",
+   "fetched_at": "2026-10-13T16:59:18.172Z"
+  },
+  "traveltriangle": {
+   "handle": "@traveltriangle",
+   "followers": 282468,
+   "source": "qoruz",
+   "as_of": "2026-09-15T05:47:40.000Z",
+   "fetched_at": "2026-10-13T16:59:21.921Z"
+  },
+  "pickyourtrail": {
+   "handle": "@pickyourtrail",
+   "followers": 447724,
+   "source": "qoruz",
+   "as_of": "2026-09-15T06:47:40.000Z",
+   "fetched_at": "2026-10-13T16:59:25.527Z"
+  }
+ },
+ "failed": [
+  {
+   "operator_id": "on-his-own-trip",
+   "handle": "@onhisowntrip",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "part-time-traveller",
+   "handle": "@parttimetraveller.co",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "alohomora-adventures",
+   "handle": "@alohomora_adventures",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "metanoia-expeditions",
+   "handle": "@metanoiaexpeditions",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "wanderon",
+   "handle": "@wander.on",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "capture-a-trip",
+   "handle": "@capture.a.trip",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "backpackclan",
+   "handle": "@backpackclan",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "tag-along-backpackers",
+   "handle": "@tagalongbackpackers",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "when-in-city",
+   "handle": "@whenincity",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "spiti-united",
+   "handle": "@thespitiunited",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "the-backpacker-co",
+   "handle": "@thebackpackerco",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "tripper-trails",
+   "handle": "@trippertrails",
+   "reason": "Qoruz figure is from 2022-10, too old to show"
+  },
+  {
+   "operator_id": "the-wanderers",
+   "handle": "@wanderersonthego",
+   "reason": "Qoruz figure is from 2020-03, too old to show"
+  },
+  {
+   "operator_id": "ant-on-the-globe",
+   "handle": "@antontheglobe",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "adventures-overland",
+   "handle": "@adventuresoverland",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "the-land-of-wanderlust",
+   "handle": "@thelandofwanderlust",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "solo-travel-india",
+   "handle": "@solotravelindia",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "sanchari-travels",
+   "handle": "@sancharitravels_",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "trekatribe",
+   "handle": "@trekatribe",
+   "reason": "Qoruz figure is from 2018-11, too old to show"
+  },
+  {
+   "operator_id": "cliffhangers-india",
+   "handle": "@cliffhangers.india",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "plan-the-unplanned",
+   "handle": "@plantheunplanned",
+   "reason": "Qoruz figure is from 2025-03, too old to show"
+  },
+  {
+   "operator_id": "bikat-adventures",
+   "handle": "@bikatadventures",
+   "reason": "Qoruz figure is from 2017-06, too old to show"
+  },
+  {
+   "operator_id": "himalayan-hikers",
+   "handle": "@himalayan_hikers",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "mapping-the-himalayas",
+   "handle": "@mappingthehimalayas",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "treks-and-trails",
+   "handle": "@treksandtrails",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "madtrek",
+   "handle": "@madtrek_adventures",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "himalayan-dream-treks",
+   "handle": "@himalayandreamtreks.hdt",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "himalaya-shelter",
+   "handle": "@himalayashelter",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "mountain-hikers",
+   "handle": "@mountain_hikers_",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "prime-tripper",
+   "handle": "@primetripper",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "trekkaro",
+   "handle": "@Trekkaro",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "renok-adventures",
+   "handle": "@renok.adventures",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "altitude-adventure-india",
+   "handle": "@altitudeadventure.india",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "scubahead",
+   "handle": "@scubahead.in",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "absolute-scuba",
+   "handle": "@absolutescubaindia",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "insider-divers",
+   "handle": "@simonlorenz_insiderdivers",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "diveindia",
+   "handle": "@diveindia",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "india-scuba-explorers",
+   "handle": "@indiascuba",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "orca-dive-club",
+   "handle": "@orcadiveclub",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "divegoa",
+   "handle": "@divegoa",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "planet-scuba-india",
+   "handle": "@planetscubaindia",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "aquanaut-india",
+   "handle": "@aquanautindia",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "wow-club",
+   "handle": "@the.wowclub",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "jugni-travel",
+   "handle": "@jugnitravel",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "women-on-clouds",
+   "handle": "@womenonclouds",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "thrillophilia",
+   "handle": "@thrillophilia",
+   "reason": "Qoruz figure is from 2024-12, too old to show"
+  },
+  {
+   "operator_id": "tripfactory",
+   "handle": "@tripfactoryofficial_",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "veena-world",
+   "handle": "@veena_world",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "gt-holidays",
+   "handle": "@gtholidays.in",
+   "reason": "not listed on Qoruz"
+  },
+  {
+   "operator_id": "cleartrip",
+   "handle": "@cleartrip",
+   "reason": "no follower count for this handle on the page"
+  },
+  {
+   "operator_id": "thomas-cook-india",
+   "handle": "@thomascookofficial",
+   "reason": "Qoruz figure is from 2018-08, too old to show"
+  },
+  {
+   "operator_id": "kesari-tours",
+   "handle": "@kesaritoursofficial",
+   "reason": "not listed on Qoruz"
+  }
+ ]
+}
