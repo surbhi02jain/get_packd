@@ -28,7 +28,7 @@
     "name": "Migrant Musings & Co.",
     "category": "community",
     "website": "https://migrantmusings.com/",
-    "instagram": "",
+    "instagram": "@migrantmusings",
     "instagram_unconfirmed": ""
   },
   {
@@ -76,7 +76,7 @@
     "name": "Backpackclan",
     "category": "community",
     "website": "https://backpackclan.com/",
-    "instagram": "@backpackclan",
+    "instagram": "@backpackclantours",
     "instagram_unconfirmed": ""
   },
   {
@@ -84,7 +84,7 @@
     "name": "Tag Along Backpackers",
     "category": "community",
     "website": "https://tagalong.in/",
-    "instagram": "@tagalongbackpackers",
+    "instagram": "@tagalonghostels",
     "instagram_unconfirmed": ""
   },
   {
@@ -100,8 +100,8 @@
     "name": "Chindi Safar",
     "category": "community",
     "website": "https://www.chindisafar.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@chindisafar"
+    "instagram": "@chindisafar",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "when-in-city",
@@ -123,9 +123,9 @@
     "id": "white-collar-hippie",
     "name": "White Collar Hippie",
     "category": "community",
-    "website": "https://whitecollarhippie.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@whitecollarhippie"
+    "website": "http://www.whitecollarhippie.in/",
+    "instagram": "@whitecollarhippie",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "broken-compass",
@@ -211,25 +211,25 @@
     "id": "breakfree-journeys",
     "name": "Breakfree Journeys",
     "category": "community",
-    "website": "",
-    "instagram": "",
+    "website": "https://www.breakfreeadventures.com/",
+    "instagram": "@breakfreeadventures",
     "instagram_unconfirmed": ""
   },
   {
     "id": "base-camp-adventures",
     "name": "Base Camp Adventures",
     "category": "community",
-    "website": "",
-    "instagram": "",
+    "website": "https://basecampadventure.com/",
+    "instagram": "@base.camp.adventure",
     "instagram_unconfirmed": ""
   },
   {
     "id": "travel-tribes",
     "name": "Travel Tribes",
     "category": "community",
-    "website": "",
-    "instagram": "",
-    "instagram_unconfirmed": "@traveltribes.in"
+    "website": "https://www.traveltribes.in/",
+    "instagram": "@traveltribes.in",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "indian-solo-travelers",
@@ -268,8 +268,8 @@
     "name": "Indiahikes",
     "category": "trekking",
     "website": "https://www.indiahikes.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@indiahikes"
+    "instagram": "@indiahikes",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "trekatribe",
@@ -332,8 +332,8 @@
     "name": "Trekkers of India",
     "category": "trekking",
     "website": "https://trekkersofindia.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@trekkersofindia"
+    "instagram": "@trekkersofindia",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "hikerwolf",
@@ -349,6 +349,7 @@
     "category": "trekking",
     "website": "https://www.treksandtrails.org/",
     "instagram": "@treksandtrails",
+    "instagram_followers": 159000,
     "instagram_unconfirmed": ""
   },
   {
@@ -356,8 +357,8 @@
     "name": "Trekkers United",
     "category": "trekking",
     "website": "https://www.trekkersunited.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@trekkers.united"
+    "instagram": "@trekkers.united",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "madtrek",
@@ -372,7 +373,8 @@
     "name": "Himtrek",
     "category": "trekking",
     "website": "https://himtrek.co.in/",
-    "instagram": "",
+    "instagram": "@him_trek",
+    "instagram_followers": 59900,
     "instagram_unconfirmed": ""
   },
   {
@@ -451,16 +453,16 @@
     "id": "walk-the-himalayas",
     "name": "Walk the Himalayas",
     "category": "trekking",
-    "website": "",
-    "instagram": "",
+    "website": "https://walktohimalayas.com/",
+    "instagram": "@walktohimalayas",
     "instagram_unconfirmed": ""
   },
   {
     "id": "moxtain",
     "name": "Moxtain",
     "category": "trekking",
-    "website": "",
-    "instagram": "",
+    "website": "https://www.moxtain.com/",
+    "instagram": "@moxtain",
     "instagram_unconfirmed": ""
   },
   {
@@ -620,8 +622,8 @@
     "name": "Wander Womaniya",
     "category": "women_specialist",
     "website": "https://www.wanderwomaniya.com/",
-    "instagram": "",
-    "instagram_unconfirmed": "@wanderwomaniya_"
+    "instagram": "@wanderwomaniya_",
+    "instagram_unconfirmed": ""
   },
   {
     "id": "wovoyage",
@@ -668,7 +670,7 @@
     "name": "Ladakhi Women's Travel Company",
     "category": "women_specialist",
     "website": "https://ladakhiwomenstravel.com/",
-    "instagram": "",
+    "instagram": "@ladakhiwomenstravelcompany",
     "instagram_unconfirmed": ""
   },
   {
@@ -749,6 +751,7 @@
     "category": "aggregator",
     "website": "https://www.veenaworld.com/",
     "instagram": "@veena_world",
+    "instagram_followers": 129000,
     "instagram_unconfirmed": ""
   },
   {
@@ -796,7 +799,7 @@
     "name": "SOTC Travel",
     "category": "legacy",
     "website": "https://www.sotc.in/",
-    "instagram": "",
+    "instagram": "@sotc_holidays",
     "instagram_unconfirmed": ""
   },
   {

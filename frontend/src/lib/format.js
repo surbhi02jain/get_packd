@@ -19,6 +19,7 @@ export const d = (iso) => new Date(iso + "T00:00:00");
 export const fmtDay = (iso) => { const x = d(iso); return `${x.getDate()} ${M[x.getMonth()]}`; };
 export const fmtRange = (a, b) => {
   const x = d(a), y = d(b);
+  if (a === b || !b) return fmtDay(a); // a one-day trip
   return x.getMonth() === y.getMonth() ? `${x.getDate()}–${y.getDate()} ${M[y.getMonth()]}` : `${fmtDay(a)} – ${fmtDay(b)}`;
 };
 export const iso = (date) => {

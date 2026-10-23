@@ -14,7 +14,8 @@ import * as se from "./searchEngine.js";
 import { DESTINATIONS, DEST_BY_SLUG } from "./destinations.js";
 import { type ImportResult, runImport } from "./importTrips.js";
 import { runInstagramImport } from "./importInstagram.js";
-import { fetchedAt, instagramFetchedAt, itinerary, loadSeed, seedVersion, slugify } from "./seedData.js";
+import { reviewSources, runReviewImport } from "./importReviews.js";
+import { fetchedAt, instagramFetchedAt, itinerary, loadSeed, reviewsFetchedAt, seedVersion, slugify } from "./seedData.js";
 import type { Departure, GroupStats, Operator, Review, Trip } from "./types.js";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -87,7 +88,19 @@ async function refreshTrips(reason: string) {
         console.error("Instagram follower refresh failed", e);
       }
     }
-    if (r.written || igAge > 7 * 86_400_000) {
+    // Google and Tripadvisor ratings are re-read weekly too, once a key for either is set
+    const rvAge = reviewsFetchedAt() ? Date.now() - Date.parse(reviewsFetchedAt()) : Infinity;
+    let reviewsRead = false;
+    if (reviewSources().length && rvAge > 7 * 86_400_000) {
+      try {
+        const rv = await runReviewImport();
+        reviewsRead = true;
+        console.info(`Reviews read from ${rv.sources.join(" and ")}: ${rv.google} operators with a Google rating, ${rv.tripadvisor} with a Tripadvisor rating`);
+      } catch (e) {
+        console.error("Review refresh failed", e);
+      }
+    }
+    if (r.written || igAge > 7 * 86_400_000 || reviewsRead) {
       await seedIfNeeded();
       await reloadCache();
       console.info(`Trip refresh done: ${r.trips} trips, ${r.departures} departures from ${r.operators} operators; ${r.new_trips.length} new, ${r.removed_trips} no longer listed`);
@@ -152,7 +165,7 @@ app.use(cors({ origin: origins.includes("*") ? true : origins, credentials: true
 app.use(express.json({ limit: "1mb" }));
 
 api.get("/", (_req, res) => {
-  res.json({ message: "Wayfind API", departures: se.STATE.items.length, prices_fetched_at: fetchedAt(), next_refresh_at: refresh.nextAt, refreshing: refresh.running });
+  res.json({ message: "getPackd API", departures: se.STATE.items.length, prices_fetched_at: fetchedAt(), next_refresh_at: refresh.nextAt, refreshing: refresh.running });
 });
 
 api.get("/search", (req, res) => {
@@ -229,7 +242,7 @@ api.get("/trips/:trip_id", async (req, res) => {
 
 // Every listed operator, with how many upcoming departures we hold for each (zero when their trips aren't imported).
 api.get("/operators", async (_req, res) => {
-  const ops = await db.collection("operators").find({}, { projection: { _id: 0, leaders: 0, verification: 0 } }).limit(1000).toArray();
+  const ops = await db.collection("operators").find({}, { projection: { _id: 0, leaders: 0, verification: 0, external_reviews: 0 } }).limit(1000).toArray();
   const stats = new Map<string, { departures: number; trips: Set<string>; from_price: number }>();
   for (const i of se.STATE.items) {
     if (i.status === "cancelled") continue;
@@ -452,7 +465,7 @@ api.get("/admin/overview", async (req, res) => {
   const trips = await db.collection("trips").find({}, { projection: { _id: 0, id: 1, title: 1, operator_id: 1 } }).limit(2000).toArray();
   res.json({ operators: ops, leads, signups, alerts, trips,
              counts: { departures: se.STATE.items.length, trips: trips.length, operators: ops.length },
-             refresh: { every_days: REFRESH_DAYS, prices_fetched_at: fetchedAt(), instagram_fetched_at: instagramFetchedAt() || null, next_at: refresh.nextAt, running: refresh.running, last: refresh.last } });
+             refresh: { every_days: REFRESH_DAYS, prices_fetched_at: fetchedAt(), instagram_fetched_at: instagramFetchedAt() || null, reviews_fetched_at: reviewsFetchedAt() || null, review_sources: reviewSources(), next_at: refresh.nextAt, running: refresh.running, last: refresh.last } });
 });
 
 // Start a refresh now instead of waiting for the schedule. It runs in the background and takes several minutes.
@@ -605,7 +618,7 @@ async function main() {
   scheduleRefresh();
   console.info(refresh.nextAt ? `Next trip refresh: ${refresh.nextAt} (every ${REFRESH_DAYS} days)` : "Scheduled trip refresh is off");
   const port = Number(process.env.PORT || 8001);
-  const server = app.listen(port, process.env.HOST || "0.0.0.0", () => console.info(`Wayfind API listening on :${port}`));
+  const server = app.listen(port, process.env.HOST || "0.0.0.0", () => console.info(`getPackd API listening on :${port}`));
   const shutdown = () => {
     server.close(() => void client.close().finally(() => process.exit(0)));
   };

@@ -19,15 +19,13 @@ export function CompareTray() {
       <AnimatePresence>
         {n > 0 && (
           <motion.div initial={{ y: 120, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 120, opacity: 0 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="pointer-events-auto flex w-full max-w-5xl flex-col gap-3 rounded-3xl border border-white/15 bg-midnight p-3 text-sand shadow-2xl sm:flex-row sm:items-center" data-testid="compare-tray">
-            <div className="flex shrink-0 items-center justify-between gap-3 sm:block sm:pl-2">
-              <div>
-                <p className="text-sm font-semibold">Compare trips <span className="font-mono text-xs text-amber">{n}/4</span></p>
-                <p className="text-[11px] text-sand/60" data-testid="compare-tray-hint">{ready ? "See them side by side" : "Tick one more trip to compare"}</p>
-              </div>
-              <button data-testid="compare-tray-clear" onClick={() => setCompare([])} className="text-xs underline sm:hidden">Clear</button>
+            className="pointer-events-auto flex w-full max-w-5xl items-center gap-3 rounded-3xl border border-white/15 bg-midnight p-3 text-sand shadow-2xl" data-testid="compare-tray">
+            {/* on phones the tray is one short row; the trip thumbnails only show from tablet width up */}
+            <div className="min-w-0 flex-1 pl-2 sm:flex-none">
+              <p className="text-sm font-semibold">Compare trips <span className="font-mono text-xs text-amber">{n}/4</span></p>
+              <p className="hidden text-[11px] text-sand/60 sm:block" data-testid="compare-tray-hint">{ready ? "See them side by side" : "Tick one more trip to compare"}</p>
             </div>
-            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar">
+            <div className="hidden min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar sm:flex">
               {compare.map((c) => (
                 <div key={c.dep_id} className="flex shrink-0 items-center gap-2 rounded-2xl bg-white/10 py-1 pl-1 pr-2">
                   <img src={c.image} alt="" className="h-9 w-9 rounded-xl object-cover" />
@@ -37,14 +35,14 @@ export function CompareTray() {
               ))}
               {[...Array(4 - n)].map((_, i) => <div key={i} className="hidden h-11 w-20 shrink-0 place-items-center rounded-2xl border border-dashed border-white/20 text-[10px] text-sand/40 lg:grid">+ add</div>)}
             </div>
-            <button onClick={() => setCompare([])} className="hidden shrink-0 text-xs underline sm:block">Clear</button>
+            <button data-testid="compare-tray-clear" onClick={() => setCompare([])} className="shrink-0 text-xs underline">Clear</button>
             {ready ? (
               <Link to={`/compare?deps=${compare.map((c) => encodeURIComponent(c.dep_id)).join(",")}`} data-testid="compare-now-button"
-                className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-coral px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-coral/40 transition-transform hover:scale-[1.03]">
-                Compare {n} side by side <ArrowRight size={16} />
+                className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-coral px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-coral/40 transition-transform hover:scale-[1.03] sm:px-5 sm:py-3">
+                <span>Compare {n}<span className="hidden sm:inline"> side by side</span></span> <ArrowRight size={16} />
               </Link>
             ) : (
-              <span data-testid="compare-now-button" aria-disabled className="flex shrink-0 cursor-not-allowed items-center justify-center rounded-2xl bg-white/10 px-5 py-3 text-sm font-semibold text-sand/50">Pick 1 more to compare</span>
+              <span data-testid="compare-now-button" aria-disabled className="flex shrink-0 cursor-not-allowed items-center justify-center rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-sand/50 sm:px-5 sm:py-3">Pick 1 more<span className="hidden sm:inline">&nbsp;to compare</span></span>
             )}
           </motion.div>
         )}

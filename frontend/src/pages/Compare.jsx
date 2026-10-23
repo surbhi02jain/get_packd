@@ -48,7 +48,8 @@ export default function Compare() {
                 <Row label="Dates">{items.map(({ card }) => <td key={card.dep_id} className="p-4">{fmtRange(card.start, card.end)} · {card.duration}D<br /><span className="text-muted-foreground">{card.seats_left != null ? `${card.seats_left} seats left` : ""}</span></td>)}</Row>
                 <Row label="Meeting point">{items.map(({ card }) => <td key={card.dep_id} className="p-4">{card.meeting_point || "—"}</td>)}</Row>
                 <Row label="Group">{items.map(({ card }) => <td key={card.dep_id} className="space-y-2 p-4"><p>{LABELS.gender[card.gender_policy]}{card.max_group != null ? ` · ${card.min_group != null ? `${card.min_group}–` : "up to "}${card.max_group} people` : ""}{card.solo_ratio != null ? ` · ${Math.round(card.solo_ratio * 100)}% solo` : ""}</p><GenderBar split={card.gender_split} /><AgeBar range={card.age_range} median={card.age_median} /></td>)}</Row>
-                <Row label="Stays">{items.map(({ card, trip }) => <td key={card.dep_id} className="p-4">{trip.stay_tier ? `${LABELS.stay[trip.stay_tier]} · ${trip.room_sharing}` : "—"}</td>)}</Row>
+                {/* stay type is only known for hand-entered trips; imported ones show it under the checklist below */}
+                {items.some(({ trip }) => trip.stay_tier) && <Row label="Stay type">{items.map(({ card, trip }) => <td key={card.dep_id} className="p-4">{trip.stay_tier ? `${LABELS.stay[trip.stay_tier]} · ${trip.room_sharing}` : "—"}</td>)}</Row>}
                 {items[0]?.card.breakdown.map((l, idx) => (
                   <Row key={l.key} label={l.label}>{items.map(({ card }) => <td key={card.dep_id} className="p-4 text-center"><span className="inline-flex">{lineIcon(card.breakdown[idx].status, 16)}</span><span className="block font-mono text-[10px] text-muted-foreground">{lineNote(card.breakdown[idx], short)}</span></td>)}</Row>
                 ))}

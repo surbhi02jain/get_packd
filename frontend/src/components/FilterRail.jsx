@@ -6,13 +6,12 @@ import { Slider } from "@/components/ui/slider";
 import { LABELS } from "@/lib/constants";
 import { short } from "@/lib/format";
 
+// Only filters the imported trips carry data for. Age, pace, difficulty, stays, food, group size and trust
+// signals are not on operators' sites, so those filters would match nothing (or hide most trips).
 const SECTIONS = [
-  ["Who it's for", ["audience"]], ["Group makeup", ["gender"]], ["Age band of the group", ["age"], "agerange"],
-  ["Group size", ["size"], null, ["solo_many"]], ["Destination", ["dtype", "country"]], ["Climate", ["climate"]],
-  ["Duration", ["dur"]], ["Budget (true price)", [], "price"], ["Trip style", ["style"]], ["Pace", ["pace"]],
-  ["Difficulty", ["difficulty"]], ["Stays", ["stay"], null, ["private_room"]], ["Food", ["diet"]], ["Inclusions", ["incl"]],
-  ["Safety & trust", ["trust"]], ["Visa", [], null, ["visa_easy"]], ["Seats available", [], "seats"], ["Operator type", ["op_type"]],
-  ["Operator", [], "operator"],
+  ["Group makeup", ["gender"]], ["Destination", ["dtype", "country"], null, ["visa_easy"]], ["Duration", ["dur"]],
+  ["Budget", [], "price"], ["Trip style", ["style"]], ["Climate", ["climate"]], ["Inclusions", ["incl"]],
+  ["Seats available", [], "seats"], ["Operator type", ["op_type"]], ["Operator", [], "operator"],
 ];
 
 const list = (params, k) => (params[k] ? String(params[k]).split(",") : []);
@@ -53,6 +52,7 @@ function RangeSlider({ min, max, step, value, onCommit, fmt, testId }) {
 
 export default function FilterRail({ facets = {}, params, update, bounds }) {
   const [opQ, setOpQ] = useState("");
+  const [allCountries, setAllCountries] = useState(false);
   const toggle = (k, v) => {
     const cur = list(params, k);
     const next = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
@@ -62,10 +62,19 @@ export default function FilterRail({ facets = {}, params, update, bounds }) {
     const f = facets[k] || {};
     const labels = LABELS[k];
     const keys = labels ? Object.keys(labels) : Object.keys(f);
-    return keys.map((v) => (
-      <Opt key={v} id={`filter-${k}-${v}`} label={labels ? labels[v] : f[v]?.label || v} count={typeof f[v] === "object" ? f[v].count : f[v] ?? 0}
-        checked={list(params, k).includes(v)} onChange={() => toggle(k, v)} />
-    ));
+    const count = (v) => (typeof f[v] === "object" ? f[v].count : f[v] ?? 0);
+    // options that match no trip are left out, unless already picked
+    const shown = keys.filter((v) => count(v) > 0 || list(params, k).includes(v));
+    // the country list runs long, so only the busiest few show until asked
+    const cut = k === "country" && !allCountries && shown.length > 7;
+    const visible = cut ? shown.filter((v, i) => i < 6 || list(params, k).includes(v)) : shown;
+    return [
+      ...visible.map((v) => (
+        <Opt key={v} id={`filter-${k}-${v}`} label={labels ? labels[v] : f[v]?.label || v} count={count(v)}
+          checked={list(params, k).includes(v)} onChange={() => toggle(k, v)} />
+      )),
+      cut && <button key="more" data-testid="filter-country-show-all" onClick={() => setAllCountries(true)} className="px-1 pt-1 text-xs font-semibold underline">Show all {shown.length} countries</button>,
+    ];
   };
   const boolRow = (k) => (
     <label key={k} className="flex items-center justify-between gap-2 px-1 py-1.5 text-sm">
@@ -116,7 +125,7 @@ export default function FilterRail({ facets = {}, params, update, bounds }) {
   return (
     <div data-testid="filter-rail">
       {SECTIONS.map(([title, keys, extra, bools], idx) => (
-        <Section key={title} title={title} defaultOpen={idx < 4 || keys.some((k) => params[k]) || (bools || []).some((k) => params[k])}>
+        <Section key={title} title={title} defaultOpen={idx < 3 || keys.some((k) => params[k]) || (bools || []).some((k) => params[k])}>
           {keys.map((k) => <div key={k} className={k === "country" ? "mt-2 border-t pt-2" : ""}>{group(k)}</div>)}
           {(bools || []).map(boolRow)}
           {extra && extras[extra]}

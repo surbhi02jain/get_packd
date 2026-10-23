@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Frame, Glow, Kicker, Reveal, SplitHeading } from "@/components/Decor";
 import { Counter } from "@/components/Motion";
-import { InstaCount } from "@/components/TripBits";
+import { InstaCount, RatingBadges } from "@/components/TripBits";
 import { http } from "@/lib/api";
 import { LABELS } from "@/lib/constants";
 import { short } from "@/lib/format";
@@ -36,11 +36,12 @@ function OperatorCard({ op }) {
         <div className="mt-auto">
           {op.departures > 0
             ? <p className="text-sm"><b className="font-elegant text-3xl text-coral">{op.departures}</b> {op.departures === 1 ? "departure" : "departures"} · {op.trips} {op.trips === 1 ? "trip" : "trips"} <span className="text-muted-foreground">· from {short(op.from_price)}</span></p>
-            : <p className="text-sm text-muted-foreground">{op.website ? "Trips not on Wayfind yet — see their site" : "No website found yet"}</p>}
+            : <p className="text-sm text-muted-foreground">{op.website ? "Trips not on getPackd yet — see their site" : "No website found yet"}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/60 pt-3 text-xs text-muted-foreground">
             {op.website && <span className="flex min-w-0 items-center gap-1"><Globe2 size={12} className="shrink-0" /><span className="truncate">{domain(op.website)}</span></span>}
             {op.instagram && <span className="truncate">{op.instagram}</span>}
-            <InstaCount handle={op.instagram} followers={op.instagram_followers} at={op.instagram_followers_at} source={op.instagram_followers_source} full />
+            <InstaCount handle={op.instagram} followers={op.instagram_followers} at={op.instagram_followers_at} source={op.instagram_followers_source} full plain />
+            <RatingBadges ratings={op.external_ratings} plain />
           </div>
         </div>
       </Link>

@@ -1,4 +1,4 @@
-// Comprehensive backend API tests for Wayfind. They run against a live backend.
+// Comprehensive backend API tests for getPackd. They run against a live backend.
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 

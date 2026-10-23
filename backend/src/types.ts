@@ -50,6 +50,35 @@ export interface Operator {
   instagram_followers_at?: string | null;
   /** "instagram-api", "qoruz", or "manual" for a hand-entered figure. */
   instagram_followers_source?: string | null;
+  /** Star ratings from Google Maps and Tripadvisor listings confirmed as the operator's own. */
+  external_ratings?: ExternalRating[];
+  /** A few reviews from those listings (the most relevant ones each site gives out). */
+  external_reviews?: ExternalReview[];
+}
+
+export interface ExternalRating {
+  source: "google" | "tripadvisor";
+  rating: number;
+  count: number;
+  /** The listing on Google Maps or Tripadvisor. */
+  url: string;
+  /** Tripadvisor's own rating-bubbles image, which its terms ask to be shown with the rating. */
+  rating_image?: string | null;
+  as_of: string;
+}
+
+export interface ExternalReview {
+  source: "google" | "tripadvisor";
+  author: string;
+  author_url?: string | null;
+  author_photo?: string | null;
+  rating: number;
+  title?: string | null;
+  text: string;
+  date: string | null;
+  /** "2 months ago", as Google words it. */
+  relative?: string | null;
+  url?: string | null;
 }
 
 export interface ItineraryDay {

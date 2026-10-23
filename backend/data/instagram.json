@@ -1,387 +1,597 @@
 {
- "fetched_at": "2026-10-13T16:59:36.515Z",
- "source": "qoruz",
+ "fetched_at": "2026-10-23T12:52:56.249Z",
+ "source": "instagram-api",
  "accounts": {
+  "on-his-own-trip": {
+   "handle": "@onhisowntrip",
+   "followers": 45804,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:49:59.341Z",
+   "fetched_at": "2026-10-23T12:49:59.342Z"
+  },
   "one-in-the-orange-jacket": {
    "handle": "@oneintheorangejacket",
-   "followers": 29278,
-   "source": "qoruz",
-   "as_of": "2026-09-19T06:34:05.000Z",
-   "fetched_at": "2026-10-13T16:57:31.414Z"
+   "followers": 29899,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:01.507Z",
+   "fetched_at": "2026-10-23T12:50:01.507Z"
+  },
+  "part-time-traveller": {
+   "handle": "@parttimetraveller.co",
+   "followers": 713,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:03.634Z",
+   "fetched_at": "2026-10-23T12:50:03.634Z"
+  },
+  "migrant-musings": {
+   "handle": "@migrantmusings",
+   "followers": 13604,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:05.703Z",
+   "fetched_at": "2026-10-23T12:50:05.703Z"
+  },
+  "alohomora-adventures": {
+   "handle": "@alohomora_adventures",
+   "followers": 5042,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:07.705Z",
+   "fetched_at": "2026-10-23T12:50:07.705Z"
+  },
+  "metanoia-expeditions": {
+   "handle": "@metanoiaexpeditions",
+   "followers": 129568,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:10.278Z",
+   "fetched_at": "2026-10-23T12:50:10.278Z"
   },
   "justwravel": {
    "handle": "@justwravel",
-   "followers": 350037,
-   "source": "qoruz",
-   "as_of": "2026-09-15T05:41:22.000Z",
-   "fetched_at": "2026-10-13T16:57:38.851Z"
+   "followers": 354570,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:12.116Z",
+   "fetched_at": "2026-10-23T12:50:12.116Z"
+  },
+  "wanderon": {
+   "handle": "@wander.on",
+   "followers": 660405,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:14.733Z",
+   "fetched_at": "2026-10-23T12:50:14.733Z"
+  },
+  "capture-a-trip": {
+   "handle": "@capture.a.trip",
+   "followers": 588759,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:16.708Z",
+   "fetched_at": "2026-10-23T12:50:16.708Z"
+  },
+  "backpackclan": {
+   "handle": "@backpackclantours",
+   "followers": 64750,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:18.704Z",
+   "fetched_at": "2026-10-23T12:50:18.704Z"
+  },
+  "tag-along-backpackers": {
+   "handle": "@tagalonghostels",
+   "followers": 880,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:20.707Z",
+   "fetched_at": "2026-10-23T12:50:20.707Z"
   },
   "bhatakna-tours-travels": {
    "handle": "@bhatakna",
-   "followers": 85829,
-   "source": "qoruz",
-   "as_of": "2026-09-17T10:22:06.000Z",
-   "fetched_at": "2026-10-13T16:57:48.143Z"
+   "followers": 85560,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:22.720Z",
+   "fetched_at": "2026-10-23T12:50:22.720Z"
+  },
+  "chindi-safar": {
+   "handle": "@chindisafar",
+   "followers": 15989,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:25.142Z",
+   "fetched_at": "2026-10-23T12:50:25.142Z"
+  },
+  "when-in-city": {
+   "handle": "@whenincity",
+   "followers": 82726,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:27.053Z",
+   "fetched_at": "2026-10-23T12:50:27.053Z"
+  },
+  "white-collar-hippie": {
+   "handle": "@whitecollarhippie",
+   "followers": 9800,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:29.406Z",
+   "fetched_at": "2026-10-23T12:50:29.406Z"
+  },
+  "spiti-united": {
+   "handle": "@thespitiunited",
+   "followers": 17355,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:31.595Z",
+   "fetched_at": "2026-10-23T12:50:31.595Z"
+  },
+  "the-backpacker-co": {
+   "handle": "@thebackpackerco",
+   "followers": 21700,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:33.708Z",
+   "fetched_at": "2026-10-23T12:50:33.708Z"
+  },
+  "tripper-trails": {
+   "handle": "@trippertrails",
+   "followers": 115036,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:35.807Z",
+   "fetched_at": "2026-10-23T12:50:35.807Z"
+  },
+  "the-wanderers": {
+   "handle": "@wanderersonthego",
+   "followers": 1603,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:37.739Z",
+   "fetched_at": "2026-10-23T12:50:37.739Z"
+  },
+  "ant-on-the-globe": {
+   "handle": "@antontheglobe",
+   "followers": 2201,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:39.587Z",
+   "fetched_at": "2026-10-23T12:50:39.587Z"
+  },
+  "adventures-overland": {
+   "handle": "@adventuresoverland",
+   "followers": 363771,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:41.434Z",
+   "fetched_at": "2026-10-23T12:50:41.434Z"
+  },
+  "solo-travel-india": {
+   "handle": "@solotravelindia",
+   "followers": 11826,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:45.702Z",
+   "fetched_at": "2026-10-23T12:50:45.702Z"
+  },
+  "breakfree-journeys": {
+   "handle": "@breakfreeadventures",
+   "followers": 2678,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:47.701Z",
+   "fetched_at": "2026-10-23T12:50:47.701Z"
+  },
+  "base-camp-adventures": {
+   "handle": "@base.camp.adventure",
+   "followers": 182,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:49.714Z",
+   "fetched_at": "2026-10-23T12:50:49.714Z"
+  },
+  "travel-tribes": {
+   "handle": "@traveltribes.in",
+   "followers": 34822,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:51.545Z",
+   "fetched_at": "2026-10-23T12:50:51.545Z"
   },
   "firgun-travels": {
    "handle": "@firguntravels",
-   "followers": 22573,
-   "source": "qoruz",
-   "as_of": "2026-09-18T10:26:41.000Z",
-   "fetched_at": "2026-10-13T16:58:07.698Z"
+   "followers": 22542,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:53.445Z",
+   "fetched_at": "2026-10-23T12:50:53.445Z"
+  },
+  "sanchari-travels": {
+   "handle": "@sancharitravels_",
+   "followers": 60,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:55.342Z",
+   "fetched_at": "2026-10-23T12:50:55.342Z"
   },
   "trek-the-himalayas": {
    "handle": "@trekthehimalayas",
-   "followers": 167510,
-   "source": "qoruz",
-   "as_of": "2026-09-15T07:16:29.000Z",
-   "fetched_at": "2026-10-13T16:58:11.382Z"
+   "followers": 168533,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:57.177Z",
+   "fetched_at": "2026-10-23T12:50:57.177Z"
+  },
+  "indiahikes": {
+   "handle": "@indiahikes",
+   "followers": 661582,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:50:59.241Z",
+   "fetched_at": "2026-10-23T12:50:59.241Z"
+  },
+  "trekatribe": {
+   "handle": "@trekatribe",
+   "followers": 56925,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:01.307Z",
+   "fetched_at": "2026-10-23T12:51:01.307Z"
+  },
+  "cliffhangers-india": {
+   "handle": "@cliffhangers.india",
+   "followers": 16517,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:03.384Z",
+   "fetched_at": "2026-10-23T12:51:03.384Z"
+  },
+  "plan-the-unplanned": {
+   "handle": "@plantheunplanned",
+   "followers": 6894,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:05.207Z",
+   "fetched_at": "2026-10-23T12:51:05.207Z"
+  },
+  "bikat-adventures": {
+   "handle": "@bikatadventures",
+   "followers": 75884,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:07.046Z",
+   "fetched_at": "2026-10-23T12:51:07.046Z"
+  },
+  "himalayan-hikers": {
+   "handle": "@himalayan_hikers",
+   "followers": 31197,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:09.347Z",
+   "fetched_at": "2026-10-23T12:51:09.347Z"
+  },
+  "mapping-the-himalayas": {
+   "handle": "@mappingthehimalayas",
+   "followers": 1737,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:11.484Z",
+   "fetched_at": "2026-10-23T12:51:11.484Z"
   },
   "trekup-india": {
    "handle": "@trekupindia",
-   "followers": 47262,
-   "source": "qoruz",
-   "as_of": "2026-09-19T18:22:14.000Z",
-   "fetched_at": "2026-10-13T16:58:24.287Z"
+   "followers": 47628,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:13.879Z",
+   "fetched_at": "2026-10-23T12:51:13.879Z"
+  },
+  "trekkers-of-india": {
+   "handle": "@trekkersofindia",
+   "followers": 429109,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:16.029Z",
+   "fetched_at": "2026-10-23T12:51:16.029Z"
   },
   "hikerwolf": {
    "handle": "@hikerwolf",
-   "followers": 70139,
-   "source": "qoruz",
-   "as_of": "2026-09-15T13:31:21.000Z",
-   "fetched_at": "2026-10-13T16:58:26.232Z"
+   "followers": 70428,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:18.341Z",
+   "fetched_at": "2026-10-23T12:51:18.341Z"
+  },
+  "treks-and-trails": {
+   "handle": "@treksandtrails",
+   "followers": 159058,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:20.489Z",
+   "fetched_at": "2026-10-23T12:51:20.489Z"
+  },
+  "trekkers-united": {
+   "handle": "@trekkers.united",
+   "followers": 70227,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:22.641Z",
+   "fetched_at": "2026-10-23T12:51:22.641Z"
+  },
+  "madtrek": {
+   "handle": "@madtrek_adventures",
+   "followers": 4079,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:24.517Z",
+   "fetched_at": "2026-10-23T12:51:24.517Z"
+  },
+  "himtrek": {
+   "handle": "@him_trek",
+   "followers": 59958,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:27.123Z",
+   "fetched_at": "2026-10-23T12:51:27.123Z"
   },
   "the-searching-souls": {
    "handle": "@thesearchingsouls",
-   "followers": 109543,
-   "source": "qoruz",
-   "as_of": "2026-09-16T19:55:56.000Z",
-   "fetched_at": "2026-10-13T16:58:31.868Z"
+   "followers": 109683,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:29.704Z",
+   "fetched_at": "2026-10-23T12:51:29.704Z"
+  },
+  "himalayan-dream-treks": {
+   "handle": "@himalayandreamtreks.hdt",
+   "followers": 14478,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:31.713Z",
+   "fetched_at": "2026-10-23T12:51:31.713Z"
+  },
+  "himalaya-shelter": {
+   "handle": "@himalayashelter",
+   "followers": 7347,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:33.894Z",
+   "fetched_at": "2026-10-23T12:51:33.894Z"
+  },
+  "mountain-hikers": {
+   "handle": "@mountain_hikers_",
+   "followers": 3806,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:36.832Z",
+   "fetched_at": "2026-10-23T12:51:36.832Z"
+  },
+  "prime-tripper": {
+   "handle": "@primetripper",
+   "followers": 546,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:38.980Z",
+   "fetched_at": "2026-10-23T12:51:38.980Z"
+  },
+  "renok-adventures": {
+   "handle": "@renok.adventures",
+   "followers": 2249,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:42.791Z",
+   "fetched_at": "2026-10-23T12:51:42.791Z"
+  },
+  "altitude-adventure-india": {
+   "handle": "@altitudeadventure.india",
+   "followers": 1623,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:45.066Z",
+   "fetched_at": "2026-10-23T12:51:45.066Z"
+  },
+  "walk-the-himalayas": {
+   "handle": "@walktohimalayas",
+   "followers": 14304,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:46.968Z",
+   "fetched_at": "2026-10-23T12:51:46.968Z"
+  },
+  "moxtain": {
+   "handle": "@moxtain",
+   "followers": 11386,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:49.251Z",
+   "fetched_at": "2026-10-23T12:51:49.251Z"
+  },
+  "scubahead": {
+   "handle": "@scubahead.in",
+   "followers": 1490,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:51.400Z",
+   "fetched_at": "2026-10-23T12:51:51.400Z"
+  },
+  "absolute-scuba": {
+   "handle": "@absolutescubaindia",
+   "followers": 1505,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:53.578Z",
+   "fetched_at": "2026-10-23T12:51:53.578Z"
   },
   "lacadives": {
    "handle": "@lacadives",
-   "followers": 14185,
+   "followers": 14213,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:55.641Z",
+   "fetched_at": "2026-10-23T12:51:55.641Z"
+  },
+  "insider-divers": {
+   "handle": "@simonlorenz_insiderdivers",
+   "followers": 15127,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:57.711Z",
+   "fetched_at": "2026-10-23T12:51:57.711Z"
+  },
+  "diveindia": {
+   "handle": "@diveindia",
+   "followers": 21610,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:51:59.838Z",
+   "fetched_at": "2026-10-23T12:51:59.838Z"
+  },
+  "india-scuba-explorers": {
+   "handle": "@indiascuba",
+   "followers": 1880,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:01.994Z",
+   "fetched_at": "2026-10-23T12:52:01.994Z"
+  },
+  "orca-dive-club": {
+   "handle": "@orcadiveclub",
+   "followers": 21806,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:04.342Z",
+   "fetched_at": "2026-10-23T12:52:04.342Z"
+  },
+  "divegoa": {
+   "handle": "@divegoa",
+   "followers": 4562,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:06.744Z",
+   "fetched_at": "2026-10-23T12:52:06.744Z"
+  },
+  "planet-scuba-india": {
+   "handle": "@planetscubaindia",
+   "followers": 1651,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:08.702Z",
+   "fetched_at": "2026-10-23T12:52:08.702Z"
+  },
+  "aquanaut-india": {
+   "handle": "@aquanautindia",
+   "followers": 4615,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:10.690Z",
+   "fetched_at": "2026-10-23T12:52:10.690Z"
+  },
+  "wander-womaniya": {
+   "handle": "@wanderwomaniya_",
+   "followers": 166098,
    "source": "qoruz",
-   "as_of": "2026-09-18T11:30:41.000Z",
-   "fetched_at": "2026-10-13T16:58:49.200Z"
+   "as_of": "2026-02-15T00:01:45.000Z",
+   "fetched_at": "2026-10-23T09:34:28.476Z"
   },
   "wovoyage": {
    "handle": "@wovoyage",
-   "followers": 183492,
-   "source": "qoruz",
-   "as_of": "2026-09-16T03:06:21.000Z",
-   "fetched_at": "2026-10-13T16:59:03.328Z"
+   "followers": 185258,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:15.298Z",
+   "fetched_at": "2026-10-23T12:52:15.298Z"
+  },
+  "wow-club": {
+   "handle": "@the.wowclub",
+   "followers": 38102,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:17.193Z",
+   "fetched_at": "2026-10-23T12:52:17.193Z"
   },
   "f5-escapes": {
    "handle": "@f5escapes",
-   "followers": 7726,
-   "source": "qoruz",
-   "as_of": "2026-09-15T05:42:08.000Z",
-   "fetched_at": "2026-10-13T16:59:06.958Z"
+   "followers": 7885,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:19.042Z",
+   "fetched_at": "2026-10-23T12:52:19.042Z"
+  },
+  "jugni-travel": {
+   "handle": "@jugnitravel",
+   "followers": 46010,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:20.925Z",
+   "fetched_at": "2026-10-23T12:52:20.925Z"
+  },
+  "women-on-clouds": {
+   "handle": "@womenonclouds",
+   "followers": 11211,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:22.843Z",
+   "fetched_at": "2026-10-23T12:52:22.843Z"
+  },
+  "ladakhi-womens-travel-company": {
+   "handle": "@ladakhiwomenstravelcompany",
+   "followers": 646,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:24.780Z",
+   "fetched_at": "2026-10-23T12:52:24.780Z"
   },
   "the-flapper-life": {
    "handle": "@theflapperlife",
-   "followers": 25721,
-   "source": "qoruz",
-   "as_of": "2026-09-18T11:20:28.000Z",
-   "fetched_at": "2026-10-13T16:59:12.285Z"
+   "followers": 26730,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:27.339Z",
+   "fetched_at": "2026-10-23T12:52:27.339Z"
   },
   "zostel": {
    "handle": "@zostel",
-   "followers": 934961,
-   "source": "qoruz",
-   "as_of": "2026-09-15T16:31:57.000Z",
-   "fetched_at": "2026-10-13T16:59:14.258Z"
+   "followers": 933610,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:29.492Z",
+   "fetched_at": "2026-10-23T12:52:29.492Z"
   },
   "the-hosteller": {
    "handle": "@thehosteller",
-   "followers": 664880,
-   "source": "qoruz",
-   "as_of": "2026-09-15T05:32:12.000Z",
-   "fetched_at": "2026-10-13T16:59:16.121Z"
+   "followers": 664179,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:31.679Z",
+   "fetched_at": "2026-10-23T12:52:31.679Z"
   },
   "tripoto": {
    "handle": "@tripotocommunity",
-   "followers": 1054688,
-   "source": "qoruz",
-   "as_of": "2026-09-15T13:41:33.000Z",
-   "fetched_at": "2026-10-13T16:59:18.172Z"
+   "followers": 1052297,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:33.582Z",
+   "fetched_at": "2026-10-23T12:52:33.582Z"
+  },
+  "thrillophilia": {
+   "handle": "@thrillophilia",
+   "followers": 2240750,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:35.703Z",
+   "fetched_at": "2026-10-23T12:52:35.703Z"
   },
   "traveltriangle": {
    "handle": "@traveltriangle",
-   "followers": 282468,
-   "source": "qoruz",
-   "as_of": "2026-09-15T05:47:40.000Z",
-   "fetched_at": "2026-10-13T16:59:21.921Z"
+   "followers": 281581,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:37.998Z",
+   "fetched_at": "2026-10-23T12:52:37.998Z"
+  },
+  "tripfactory": {
+   "handle": "@tripfactoryofficial_",
+   "followers": 27119,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:40.617Z",
+   "fetched_at": "2026-10-23T12:52:40.617Z"
   },
   "pickyourtrail": {
    "handle": "@pickyourtrail",
-   "followers": 447724,
-   "source": "qoruz",
-   "as_of": "2026-09-15T06:47:40.000Z",
-   "fetched_at": "2026-10-13T16:59:25.527Z"
+   "followers": 455709,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:42.503Z",
+   "fetched_at": "2026-10-23T12:52:42.503Z"
+  },
+  "veena-world": {
+   "handle": "@veena_world",
+   "followers": 129036,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:44.332Z",
+   "fetched_at": "2026-10-23T12:52:44.332Z"
+  },
+  "gt-holidays": {
+   "handle": "@gtholidays.in",
+   "followers": 458237,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:46.710Z",
+   "fetched_at": "2026-10-23T12:52:46.710Z"
+  },
+  "cleartrip": {
+   "handle": "@cleartrip",
+   "followers": 187144,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:48.565Z",
+   "fetched_at": "2026-10-23T12:52:48.565Z"
+  },
+  "thomas-cook-india": {
+   "handle": "@thomascookofficial",
+   "followers": 163369,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:50.965Z",
+   "fetched_at": "2026-10-23T12:52:50.965Z"
+  },
+  "sotc-travel": {
+   "handle": "@sotc_holidays",
+   "followers": 104707,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:52.825Z",
+   "fetched_at": "2026-10-23T12:52:52.825Z"
+  },
+  "kesari-tours": {
+   "handle": "@kesaritoursofficial",
+   "followers": 78740,
+   "source": "instagram-api",
+   "as_of": "2026-10-23T12:52:54.747Z",
+   "fetched_at": "2026-10-23T12:52:54.747Z"
   }
  },
  "failed": [
   {
-   "operator_id": "on-his-own-trip",
-   "handle": "@onhisowntrip",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "part-time-traveller",
-   "handle": "@parttimetraveller.co",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "alohomora-adventures",
-   "handle": "@alohomora_adventures",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "metanoia-expeditions",
-   "handle": "@metanoiaexpeditions",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "wanderon",
-   "handle": "@wander.on",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "capture-a-trip",
-   "handle": "@capture.a.trip",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "backpackclan",
-   "handle": "@backpackclan",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "tag-along-backpackers",
-   "handle": "@tagalongbackpackers",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "when-in-city",
-   "handle": "@whenincity",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "spiti-united",
-   "handle": "@thespitiunited",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "the-backpacker-co",
-   "handle": "@thebackpackerco",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "tripper-trails",
-   "handle": "@trippertrails",
-   "reason": "Qoruz figure is from 2022-10, too old to show"
-  },
-  {
-   "operator_id": "the-wanderers",
-   "handle": "@wanderersonthego",
-   "reason": "Qoruz figure is from 2020-03, too old to show"
-  },
-  {
-   "operator_id": "ant-on-the-globe",
-   "handle": "@antontheglobe",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "adventures-overland",
-   "handle": "@adventuresoverland",
-   "reason": "not listed on Qoruz"
-  },
-  {
    "operator_id": "the-land-of-wanderlust",
    "handle": "@thelandofwanderlust",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "solo-travel-india",
-   "handle": "@solotravelindia",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "sanchari-travels",
-   "handle": "@sancharitravels_",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "trekatribe",
-   "handle": "@trekatribe",
-   "reason": "Qoruz figure is from 2018-11, too old to show"
-  },
-  {
-   "operator_id": "cliffhangers-india",
-   "handle": "@cliffhangers.india",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "plan-the-unplanned",
-   "handle": "@plantheunplanned",
-   "reason": "Qoruz figure is from 2025-03, too old to show"
-  },
-  {
-   "operator_id": "bikat-adventures",
-   "handle": "@bikatadventures",
-   "reason": "Qoruz figure is from 2017-06, too old to show"
-  },
-  {
-   "operator_id": "himalayan-hikers",
-   "handle": "@himalayan_hikers",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "mapping-the-himalayas",
-   "handle": "@mappingthehimalayas",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "treks-and-trails",
-   "handle": "@treksandtrails",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "madtrek",
-   "handle": "@madtrek_adventures",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "himalayan-dream-treks",
-   "handle": "@himalayandreamtreks.hdt",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "himalaya-shelter",
-   "handle": "@himalayashelter",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "mountain-hikers",
-   "handle": "@mountain_hikers_",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "prime-tripper",
-   "handle": "@primetripper",
-   "reason": "not listed on Qoruz"
+   "reason": "Invalid user id"
   },
   {
    "operator_id": "trekkaro",
    "handle": "@Trekkaro",
-   "reason": "not listed on Qoruz"
+   "reason": "Invalid user id"
   },
   {
-   "operator_id": "renok-adventures",
-   "handle": "@renok.adventures",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "altitude-adventure-india",
-   "handle": "@altitudeadventure.india",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "scubahead",
-   "handle": "@scubahead.in",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "absolute-scuba",
-   "handle": "@absolutescubaindia",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "insider-divers",
-   "handle": "@simonlorenz_insiderdivers",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "diveindia",
-   "handle": "@diveindia",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "india-scuba-explorers",
-   "handle": "@indiascuba",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "orca-dive-club",
-   "handle": "@orcadiveclub",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "divegoa",
-   "handle": "@divegoa",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "planet-scuba-india",
-   "handle": "@planetscubaindia",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "aquanaut-india",
-   "handle": "@aquanautindia",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "wow-club",
-   "handle": "@the.wowclub",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "jugni-travel",
-   "handle": "@jugnitravel",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "women-on-clouds",
-   "handle": "@womenonclouds",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "thrillophilia",
-   "handle": "@thrillophilia",
-   "reason": "Qoruz figure is from 2024-12, too old to show"
-  },
-  {
-   "operator_id": "tripfactory",
-   "handle": "@tripfactoryofficial_",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "veena-world",
-   "handle": "@veena_world",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "gt-holidays",
-   "handle": "@gtholidays.in",
-   "reason": "not listed on Qoruz"
-  },
-  {
-   "operator_id": "cleartrip",
-   "handle": "@cleartrip",
-   "reason": "no follower count for this handle on the page"
-  },
-  {
-   "operator_id": "thomas-cook-india",
-   "handle": "@thomascookofficial",
-   "reason": "Qoruz figure is from 2018-08, too old to show"
-  },
-  {
-   "operator_id": "kesari-tours",
-   "handle": "@kesaritoursofficial",
-   "reason": "not listed on Qoruz"
+   "operator_id": "wander-womaniya",
+   "handle": "@wanderwomaniya_",
+   "reason": "Invalid user id"
   }
  ]
 }

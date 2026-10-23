@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { AnimatePresence, LayoutGroup, motion, useScroll, useTransform } from "framer-motion";
+import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { SlidersHorizontal, List, Map as MapIcon, CalendarDays, BellPlus, Wand2, Loader2, Search } from "lucide-react";
 import { LABELS } from "@/lib/constants";
 import { fmtRange, short } from "@/lib/format";
@@ -11,47 +11,26 @@ import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import FilterRail from "@/components/FilterRail";
 import DepartureCard from "@/components/DepartureCard";
-import { SortTabs, PriceStrip, ActiveChips } from "@/components/ResultsBits";
+import { SortMenu, PriceStrip, ActiveChips } from "@/components/ResultsBits";
 import { MapView, CalendarView } from "@/components/Views";
 import { CompareTray, SaveSearchDialog, FitQuiz, EmptyState, Skeletons } from "@/components/Overlays";
 import { Counter, SampleBadge } from "@/components/Motion";
-import { Frame, Glow, Kicker, Reveal, SplitHeading } from "@/components/Decor";
 import { useApp } from "@/context/AppState";
 import { http, qs } from "@/lib/api";
 
 const VIEWS = [["list", List, "List"], ["map", MapIcon, "Map"], ["calendar", CalendarDays, "Calendar"]];
 
-/** Photo header: the destination (or collection) name over a slow-moving photo, with the headline numbers. */
-function ResultsHero({ title, sub, params, data, n }) {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "22%"]);
-  const pins = data?.map || [];
-  const photo = (pins.find((p) => p.curated) || pins[0])?.image;
+/** Plain page title: the collection or destination name and one line under it. */
+function ResultsHeader({ title, sub, params }) {
   const place = params.q ? params.q.replace(/\b\w/g, (c) => c.toUpperCase()) : null;
   const heading = title || (place ? `Group trips in ${place}` : "Every group departure");
-  const line = sub || (place ? "Every operator's upcoming dates for this destination, side by side." : "All operators, all dates, one list. Narrow it down with the filters.");
+  const line = sub || (place ? "Every operator's upcoming dates for this destination, side by side." : "All operators, all dates, one list.");
   return (
-    <section ref={ref} data-testid={title ? "category-header" : "results-hero"} className="relative overflow-hidden bg-midnight text-white">
-      <motion.div style={{ y }} className="absolute inset-x-0 -top-[10%] h-[120%]">
-        <AnimatePresence>
-          {photo && <motion.img key={photo} src={photo} alt="" initial={{ opacity: 0, scale: 1.14 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.6, ease: "easeOut" }} className="absolute inset-0 h-full w-full object-cover" />}
-        </AnimatePresence>
-      </motion.div>
-      <div className="absolute inset-0 bg-midnight/55" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(7,20,28,.75)_100%)]" />
-      <Frame />
-      <div className="relative z-10 mx-auto max-w-[1400px] px-4 pb-14 pt-12 text-center sm:px-8 sm:pb-16 sm:pt-16">
-        <Kicker className="justify-center !text-amber">{title ? "Collection" : place ? "Destination" : "Explore"}</Kicker>
-        <SplitHeading as="h1" key={heading} text={heading} className="mx-auto mt-3 max-w-4xl !text-5xl sm:!text-7xl" />
-        <Reveal delay={0.25}><p className="mx-auto mt-3 max-w-xl text-white/80">{line}</p></Reveal>
-        <Reveal delay={0.4} className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-2">
-          {[[n, "departures"], [data?.total_trips, "trips"], [data?.total_operators, "operators"]].map(([v, l]) => (
-            <span key={l} className="flex items-baseline gap-2"><span className="font-elegant text-4xl text-amber sm:text-5xl"><Counter value={v} /></span><span className="text-[11px] uppercase tracking-[.3em] text-white/70">{l}</span></span>
-          ))}
-        </Reveal>
-      </div>
-    </section>
+    <header data-testid={title ? "category-header" : "results-hero"}>
+      <p className="text-[11px] font-medium uppercase tracking-[.3em] text-muted-foreground">{title ? "Collection" : place ? "Destination" : "Explore"}</p>
+      <h1 className="mt-1 font-elegant text-4xl sm:text-5xl">{heading}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{line}</p>
+    </header>
   );
 }
 
@@ -90,11 +69,8 @@ export default function Results({ preset = {}, title, sub }) {
   const rail = <FilterRail facets={data?.facets} params={params} update={update} bounds={data?.price_bounds} />;
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-clip">
-      <Glow className="-left-40 top-[640px] h-[28rem] w-[28rem] bg-[#22B8A7]/10" duration={24} />
-      <Glow className="-right-32 top-[980px] h-[26rem] w-[26rem] bg-coral/10" drift={-60} duration={28} />
+    <div className="min-h-screen">
       <Navbar />
-      <ResultsHero title={title} sub={sub} params={params} data={data} n={n} />
       <div className="sticky top-[57px] z-30 border-b bg-background/85 py-3 backdrop-blur-xl" data-testid="sticky-search">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-8">
           {!expanded && (
@@ -109,24 +85,25 @@ export default function Results({ preset = {}, title, sub }) {
 
       <main className="mx-auto grid max-w-[1400px] gap-8 px-4 pt-6 sm:px-8 lg:grid-cols-[290px_1fr]">
         <aside className="hidden lg:block">
-          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="sticky top-[150px] max-h-[calc(100vh-170px)] overflow-y-auto rounded-3xl border border-border/60 bg-card px-5 pb-4 shadow-soft no-scrollbar">
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-card py-4"><p className="font-elegant text-3xl">Filters</p>
+          <div className="sticky top-[150px] max-h-[calc(100vh-170px)] overflow-y-auto rounded-3xl border border-border/60 bg-card px-5 pb-4 shadow-soft no-scrollbar">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-card py-4"><p className="text-lg font-semibold">Filters</p>
               <button data-testid="rail-clear-all" onClick={clear} className="text-xs font-semibold underline">Clear all</button></div>
             {rail}
-          </motion.div>
+          </div>
         </aside>
 
         <section className="min-w-0 space-y-5 pb-28">
+          <ResultsHeader title={title} sub={sub} params={params} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-elegant text-3xl sm:text-4xl" data-testid="result-counter">
+              <p className="text-lg font-semibold" data-testid="result-counter">
                 <Counter value={n} /> group trips <span className="text-muted-foreground">· <Counter value={data?.total_operators} /> operators</span>
                 {isFetching && <Loader2 size={16} className="ml-2 inline animate-spin text-coral" />}
               </p>
               <div className="mt-1 flex items-center gap-2"><span className="text-xs text-muted-foreground">{data?.total_trips ?? "–"} distinct trips</span><SampleBadge /></div>
             </div>
             <div className="flex flex-wrap gap-2">
+              <SortMenu sort={params.sort || "best"} onChange={(s) => update({ sort: s === "best" ? null : s })} />
               <button data-testid="open-fit-quiz" onClick={() => setQuizOpen(true)} className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted">
                 <Wand2 size={15} className="text-coral" /> {quiz ? "Fit score on" : "Get my Fit score"}
               </button>
@@ -136,7 +113,6 @@ export default function Results({ preset = {}, title, sub }) {
             </div>
           </div>
 
-          <SortTabs sort={params.sort || "best"} headline={data?.headline} onChange={(s) => update({ sort: s === "best" ? null : s })} />
           <PriceStrip data={data?.price_strip} params={params} update={update} />
 
           <div className="flex flex-wrap items-center justify-between gap-3">

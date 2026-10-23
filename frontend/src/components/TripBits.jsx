@@ -1,4 +1,4 @@
-import { Info, Check, X, CircleDashed, BadgeCheck, ShieldQuestion, Minus, Instagram } from "lucide-react";
+import { Info, Check, X, CircleDashed, BadgeCheck, ShieldQuestion, Minus, Instagram, Star } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { inr, compact } from "@/lib/format";
 
@@ -53,7 +53,7 @@ const Row = ({ label, amount }) => (
 );
 
 export function VerifiedStamp({ status, small }) {
-  // "listed" operators come from the shared operator list; Wayfind has not vetted them, so no stamp either way
+  // "listed" operators come from the shared operator list; getPackd has not vetted them, so no stamp either way
   if (status === "listed") return null;
   if (status === "verified")
     return <span data-testid="verified-stamp" className={`stamp border-mint text-emerald-700 dark:text-emerald-300 ${small ? "" : "bg-emerald-50/70 dark:bg-emerald-950/40"}`}><BadgeCheck size={11} /> Verified</span>;
@@ -66,16 +66,36 @@ const monthYear = (iso) => new Date(iso).toLocaleString("en-IN", { month: "short
 /** "as of Sep 2026 · Qoruz": when and where a follower figure comes from. */
 export const followerNote = (at, source) => [at ? `as of ${monthYear(at)}` : null, SOURCES[source] ? (source === "manual" ? SOURCES[source] : `via ${SOURCES[source]}`) : null].filter(Boolean).join(" · ");
 
-export function InstaCount({ handle, followers, at, source, full, className = "" }) {
+export function InstaCount({ handle, followers, at, source, full, plain, className = "" }) {
   if (!handle || followers == null) return null;
   const note = followerNote(at, source);
+  const Tag = plain ? "span" : "a";
   return (
-    <a href={`https://www.instagram.com/${handle.replace("@", "")}/`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} data-testid="instagram-followers"
+    <Tag {...(plain ? {} : { href: `https://www.instagram.com/${handle.replace("@", "")}/`, target: "_blank", rel: "noreferrer", onClick: (e) => e.stopPropagation() })} data-testid="instagram-followers"
       title={`${followers.toLocaleString("en-IN")} followers on Instagram (${handle})${note ? `, ${note}` : ""}. A sign of audience size, not a rating.`}
       className={`inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-coral ${className}`}>
       <Instagram size={12} /> <b className="font-semibold text-foreground">{compact(followers)}</b>{full ? " followers" : ""}
-    </a>
+    </Tag>
   );
+}
+
+/** Star ratings from the operator's own Google Maps and Tripadvisor listings, each linking to the listing. */
+export const RATING_SOURCES = { google: "Google Maps", tripadvisor: "Tripadvisor" };
+
+// `plain` renders text instead of a link, for use inside something that is already a link
+export function RatingBadges({ ratings, plain, className = "" }) {
+  if (!ratings?.length) return null;
+  const Tag = plain ? "span" : "a";
+  return ratings.map((r) => (
+    <Tag key={r.source} {...(plain ? {} : { href: r.url, target: "_blank", rel: "noreferrer", onClick: (e) => e.stopPropagation() })} data-testid={`rating-${r.source}`}
+      title={`${r.rating} out of 5 from ${r.count.toLocaleString("en-IN")} reviews on ${RATING_SOURCES[r.source]}, as of ${monthYear(r.as_of)}`}
+      className={`inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-coral ${className}`}>
+      {r.source === "tripadvisor" && r.rating_image
+        ? <img src={r.rating_image} alt={`${r.rating} of 5 bubbles`} className="h-3.5" />
+        : <><Star size={12} className="fill-amber text-amber" /><b className="font-semibold text-foreground">{r.rating.toFixed(1)}</b></>}
+      <span>({compact(r.count)})</span> <span>{RATING_SOURCES[r.source]}</span>
+    </Tag>
+  ));
 }
 
 export function AgeBar({ range, median }) {

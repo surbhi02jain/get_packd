@@ -31,7 +31,7 @@ export function ListDepartures() {
         <div>
           <p className="label-mono">For Indian operators</p>
           <h1 className="mt-3 font-display text-4xl font-semibold sm:text-5xl lg:text-6xl">List your departures. <span className="italic text-coral">Keep your margins.</span></h1>
-          <p className="mt-4 max-w-lg text-muted-foreground">Wayfind shows every group departure in one place. Travellers enquire with you directly — we never sit between you and your customer.</p>
+          <p className="mt-4 max-w-lg text-muted-foreground">getPackd shows every group departure in one place. Travellers enquire with you directly — we never sit between you and your customer.</p>
           <div className="mt-8 space-y-4">
             {props.map(([I, t, s]) => <div key={t} className="flex gap-4 rounded-[24px] bg-card p-5 shadow-soft"><I className="shrink-0 text-coral" /><div><p className="font-display text-xl">{t}</p><p className="text-sm text-muted-foreground">{s}</p></div></div>)}
           </div>

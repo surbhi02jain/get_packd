@@ -1,9 +1,9 @@
-# Wayfind — "Skyscanner for group trips"
+# getPackd — "Skyscanner for group trips"
 
 Every group departure from Indian operators in one place, compared at a like-for-like **true price**.
 Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScript (Express)** · **MongoDB** · NL search via **Claude Sonnet 4.5** (Anthropic API key).
 
-> Operators are **real companies** (the list in `backend/data/operators.json`). Their trips, dates and prices are read from their own websites by `yarn import:trips` and saved in `backend/data/trips.json`, which is seeded on backend start. Wayfind does not rate, review or vet these operators, and shows nothing about them that their own site doesn't publish.
+> Operators are **real companies** (the list in `backend/data/operators.json`). Their trips, dates and prices are read from their own websites by `yarn import:trips` and saved in `backend/data/trips.json`, which is seeded on backend start. getPackd does not rate, review or vet these operators, and shows nothing about them that their own site doesn't publish.
 
 ---
 
@@ -43,6 +43,9 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 | `ANTHROPIC_API_KEY` | `sk-ant-...` | Only needed for the ✨ natural-language search |
 | `NL_MODEL` | `claude-sonnet-4-5-20250929` | Optional. Model used for the natural-language search |
 | `PORT` | `8001` | Optional. Port the API listens on |
+| `GOOGLE_PLACES_API_KEY` | `AIza...` | Optional. Turns on Google Maps ratings and reviews for operators |
+| `TRIPADVISOR_API_KEY` | `ABC123...` | Optional. Turns on Tripadvisor ratings and reviews for operators |
+| `TRIPADVISOR_REFERER` | `https://getpackd.example` | Optional. Only if the Tripadvisor key is limited to a domain |
 | `ADMIN_USERNAME` | `admin` | `/admin` page login |
 | `ADMIN_PASSWORD` | `wayfind2026` | `/admin` page login |
 
@@ -118,7 +121,7 @@ yarn dev            # http://localhost:8001, restarts on file changes
 ```
 
 On first start it seeds the operators and the imported trips from `backend/data/`.
-Check it at http://localhost:8001/api/, which should return `{"message":"Wayfind API","departures":...}`.
+Check it at http://localhost:8001/api/, which should return `{"message":"getPackd API","departures":...}`.
 
 ### 3. Frontend
 
@@ -177,12 +180,18 @@ Put both behind one domain with a reverse proxy routing `/api/*` → backend:800
   - Leads, alerts, shortlists and anything added in the admin page are never touched.
 - **Instagram follower counts:** shown beside the operator's name wherever a trip is listed, as a sign of audience size (not a rating), with the date and source of the figure. Only handles linked from the operator's own website are used. Instagram's website is never read (it needs a login and its terms forbid automated collection); the figures come from one of:
   - *Qoruz* (default): a public influencer-analytics directory that lists follower counts by handle. Its coverage is partial and some of its profiles are years old, so only figures it captured in the last 400 days are kept.
-  - *Instagram's official Business Discovery API*, used instead when `IG_USER_ID` and `IG_ACCESS_TOKEN` are set in `backend/.env` (needs an Instagram professional account linked to a Facebook Page, a Meta developer app, and a token with `instagram_basic`). This covers every handle and is always current.
+  - *Instagram's official Business Discovery API*, used instead when `IG_USER_ID` and `IG_ACCESS_TOKEN` are set in `backend/.env` (needs an Instagram professional account linked to a Facebook Page, a Meta developer app with Facebook Login for Business, and a token with `instagram_basic`, `instagram_manage_insights`, `pages_show_list` and `pages_read_engagement`). It covers every Business or Creator account and is always current. An extended user token lasts 60 days; when it lapses the lookups fail and the last figures are kept, so renew it in the Graph API Explorer and replace `IG_ACCESS_TOKEN`.
   - *By hand*: add `"instagram_followers": 48200` to an operator's row in `backend/data/operators.json` for any the above miss.
 
   The counts are re-read with the scheduled trip refresh when they are more than a week old; `cd backend && yarn import:instagram` re-reads them on demand.
-- **Which operators have trips:** the importer has a reader per site in `backend/src/importTrips.ts` (`SOURCES`). Operators without a reader are still listed, with a link to their website and no departures. To add one, write a `discover()` (trip page URLs) and a `read()` (title, dates, price from the page) for it.
-- **What is shown for imported trips:** title, photo, dates, listed price, seats (where published), and the operator's own inclusion/exclusion lists. The only amount ever added to a listed price is 5% GST when the operator says GST is extra. Ratings, reviews, group make-up and verification are left empty.
+- **Google Maps and Tripadvisor ratings:** shown beside the operator's name on trip cards, trip pages and the operators list, with up to 5 reviews from each site under "What travellers say" on the operator's page. Every rating and review links back to its listing and is credited to its site and author. Neither site is scraped (both forbid it); their official APIs are used, each switched on by its key in `backend/.env`:
+  - *Google*: create a project in Google Cloud, turn on **Places API (New)** and billing, and create an API key restricted to that API. Set it as `GOOGLE_PLACES_API_KEY`. Reviews come from the Place Details "Atmosphere" fields, so check the current price per call; about 100 operators a week is a few hundred calls a month.
+  - *Tripadvisor*: sign up for the **Content API** at tripadvisor.com/developers, and add your server's IP address (or domain, plus `TRIPADVISOR_REFERER`) to the key's allowed list. Set it as `TRIPADVISOR_API_KEY`.
+  - A listing is used only when it links to the operator's own website, so a similarly named business is never picked up. For an operator the search misses, add `"google_place_id": "ChIJ..."` or `"tripadvisor_id": "1234567"` to its row in `backend/data/operators.json`.
+  - Ratings are re-read with the scheduled trip refresh when they are more than a week old; `cd backend && yarn import:reviews` re-reads them on demand, then restart the backend. If a listing can't be read, its last figure is kept for up to 30 days (Google limits how long its content may be stored), then dropped.
+  - These are the sites' ratings, not getPackd's; they don't change the order of results.
+- **Which operators have trips:** the importer has a reader per site in `backend/src/importTrips.ts` (`SOURCES`). Operators without a reader are still listed, with a link to their website and no departures. To add one, write a `discover()` (trip page URLs) and a `read()` (title, dates, price from the page) for it, then try it with `cd backend && yarn import:trips <operator-id>`: that lists every trip it found and any it skipped for having no known destination, without saving anything.
+- **What is shown for imported trips:** title, photo, dates, listed price, seats (where published), and the operator's own inclusion/exclusion lists. The only amount ever added to a listed price is 5% GST when the operator says GST is extra. getPackd's own ratings and reviews, group make-up and verification are left empty (Google and Tripadvisor ratings are shown separately, above).
 - **Admin:** `/admin` → log in → add operators, trips (plus first departure) and departures, verify operators, view leads and operator signups.
 - **Run backend tests:** start the backend, then `cd backend && REACT_APP_BACKEND_URL=http://localhost:8001 yarn test`. Without that variable, the tests hit the Studio preview URL.
 - **Key API endpoints:** `GET /api/search?...` (all filters, comma-separated multi values), `GET /api/home`, `GET /api/meta`, `GET /api/trips/{id}`, `GET /api/operators/{id}`, `GET /api/compare?deps=a,b`, `POST /api/leads`, `POST /api/alerts`, `POST /api/shortlists`, `POST /api/nl-search`.

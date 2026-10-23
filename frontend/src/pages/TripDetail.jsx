@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LeadForm from "@/components/LeadForm";
 import { Price, StatusPill } from "@/components/DepartureCard";
-import { VerifiedStamp, AgeBar, Donut, InstaCount, lineIcon, lineNote } from "@/components/TripBits";
+import { VerifiedStamp, AgeBar, Donut, InstaCount, RatingBadges, lineIcon, lineNote } from "@/components/TripBits";
 import { HeartButton } from "@/components/HeartButton";
 import { CompareTray } from "@/components/Overlays";
 import { Magnetic, SampleBadge } from "@/components/Motion";
@@ -77,6 +77,7 @@ export default function TripDetail() {
           <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
             <Link to={`/operator/${op.id}`} data-testid="trip-operator-link" className="flex items-center gap-2 hover:underline">by <b>{op.name}</b></Link>
             <VerifiedStamp status={op.verified_status} />
+            <RatingBadges ratings={op.external_ratings} className="!text-sm !text-sand/80 [&>b]:!text-sand" />
             <InstaCount handle={op.instagram} followers={op.instagram_followers} at={op.instagram_followers_at} source={op.instagram_followers_source} full className="!text-sm !text-sand/80 [&>b]:!text-sand" />
             {sel?.rating != null && <span className="flex items-center gap-1"><Star size={14} className="fill-amber text-amber" /> {sel.rating} · {trip.review_count} reviews</span>}
             <span>{trip.duration_days}D/{trip.duration_days - 1}N</span><span>{trip.country.join(", ")}</span>
@@ -174,7 +175,7 @@ export default function TripDetail() {
 
           {!real && <Sec title="Safety" id="trip-safety">
             <ul className="grid gap-3 text-sm sm:grid-cols-2">
-              <li className="flex gap-2"><ShieldCheck className="shrink-0 text-mint" size={18} /> Operator {op.verified_status === "verified" ? "verified by Wayfind (registration, GST, leaders, refunds)" : `is ${op.verified_status} — verification in progress`}</li>
+              <li className="flex gap-2"><ShieldCheck className="shrink-0 text-mint" size={18} /> Operator {op.verified_status === "verified" ? "verified by getPackd (registration, GST, leaders, refunds)" : `is ${op.verified_status} — verification in progress`}</li>
               <li className="flex gap-2"><HeartPulse className="shrink-0 text-coral" size={18} /> {trip.medical_support ? "Medical kit & first-aid trained leader on trip" : "Basic first-aid kit; no dedicated medical support"}</li>
               <li className="flex gap-2"><Users className="shrink-0" size={18} /> {LABELS.gender[gp]} group{gp === "women_only" ? " — open to women travellers only" : gp === "men_only" ? " — open to men travellers only" : ""}</li>
               <li className="flex gap-2"><Flag className="shrink-0" size={18} /> Difficulty {LABELS.difficulty[trip.difficulty]} · pace {LABELS.pace[trip.pace]}{trip.senior_friendly ? " · senior friendly" : ""}{trip.kid_friendly ? " · kid friendly" : ""}</li>
@@ -225,8 +226,8 @@ export default function TripDetail() {
                   <a href={op.website} target="_blank" rel="noreferrer" data-testid="go-to-operator-button" className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 py-3 text-sm font-semibold">Go to operator <ExternalLink size={14} /></a>
                 </>}
               <p className="text-center text-xs text-muted-foreground">{real
-                ? `No payment on Wayfind — you book with the operator. Price read from their site ${sel.last_verified_days === 0 ? "today" : `${sel.last_verified_days} days ago`}; check it there before booking.`
-                : `No payment on Wayfind. Verified ${sel.last_verified_days} days ago.`}</p>
+                ? `No payment on getPackd — you book with the operator. Price read from their site ${sel.last_verified_days === 0 ? "today" : `${sel.last_verified_days} days ago`}; check it there before booking.`
+                : `No payment on getPackd. Verified ${sel.last_verified_days} days ago.`}</p>
             </>}
           </div>
         </aside>

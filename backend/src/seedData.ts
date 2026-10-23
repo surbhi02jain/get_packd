@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { DEST_BY_SLUG } from "./destinations.js";
 import { PyRandom, addDays, titleCase } from "./utils.js";
-import type { Departure, Destination, Inclusion, Inclusions, ItineraryDay, Operator, Trip } from "./types.js";
+import type { Departure, Destination, ExternalRating, ExternalReview, Inclusion, Inclusions, ItineraryDay, Operator, Trip } from "./types.js";
+import type { Listing } from "./importReviews.js";
 
 const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
 
@@ -52,6 +53,14 @@ const readInstagram = () => (existsSync(path.join(DATA_DIR, "instagram.json"))
   ? readJson<{ fetched_at: string; accounts: Record<string, InstagramAccount> }>("instagram.json")
   : { fetched_at: "", accounts: {} as Record<string, InstagramAccount> });
 
+// written by `yarn import:reviews`; absent until a Google or Tripadvisor key has been set and it has run
+const readReviews = () => (existsSync(path.join(DATA_DIR, "reviews.json"))
+  ? readJson<{ fetched_at: string; operators: Record<string, { google?: Listing; tripadvisor?: Listing }> }>("reviews.json")
+  : { fetched_at: "", operators: {} as Record<string, { google?: Listing; tripadvisor?: Listing }> });
+
+/** When the Google and Tripadvisor reviews were last read ("" if never). */
+export const reviewsFetchedAt = () => readReviews().fetched_at;
+
 /** When the trips were last read from operators' sites. */
 export const fetchedAt = () => readImport().fetched_at;
 
@@ -59,7 +68,7 @@ export const fetchedAt = () => readImport().fetched_at;
 export const instagramFetchedAt = () => readInstagram().fetched_at;
 
 /** Changes whenever the trips, follower counts or operator list change, which makes the server reseed its database. */
-export const seedVersion = () => `import-${fetchedAt()}-${readInstagram().fetched_at}-${readFileSync(path.join(DATA_DIR, "operators.json")).length}`;
+export const seedVersion = () => `import-${fetchedAt()}-${readInstagram().fetched_at}-${readReviews().fetched_at}-${readFileSync(path.join(DATA_DIR, "operators.json")).length}`;
 
 export function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -71,7 +80,8 @@ const STYLE_WORDS: [string, RegExp][] = [
   ["backpacking", /\bbackpack(ing|er)?\b/i],
   ["roadtrip", /\b(road ?trip|bike|biking|motorcycle|circuit|expedition)\b/i],
   ["beaches", /\b(beach|island|islands|coast|coastal|andaman|goa|bali|gokarna|maldives|phuket|krabi)\b/i],
-  ["winter", /\b(winter|snow|frozen|chadar|christmas|xmas|northern lights)\b/i],
+  // "frozen" alone also appears in phrases like "frozen in time", so only a frozen river or lake counts
+  ["winter", /\b(winter|snow|frozen (river|lake)|chadar|christmas|xmas|northern lights)\b/i],
   ["party", /\b(new year|nye|party|festival|holi|sunburn|hornbill)\b/i],
   ["spiritual", /\b(spiritual|temple|temples|yoga|retreat|dham|jyotirlinga|kedarnath|varanasi|wellness|pilgrim)\b/i],
   ["wildlife", /\b(safari|wildlife|leopard|tiger|kaziranga|corbett|masai)\b/i],
@@ -98,18 +108,26 @@ const INCLUSION_WORDS: [string, RegExp][] = [
 export function loadSeed(): { operators: Operator[]; trips: Trip[]; departures: Departure[] } {
   const IMPORT = readImport();
   const INSTAGRAM = readInstagram();
+  const REVIEWS = readReviews();
   const withTrips = new Set(IMPORT.trips.map((t) => t.operator_id));
   const operators: Operator[] = readJson<OperatorRow[]>("operators.json").map((o) => {
     // a follower count is only shown for the handle confirmed as the operator's own (linked from their website)
     const acc = INSTAGRAM.accounts[o.id];
     const usable = acc && o.instagram && acc.handle.toLowerCase() === o.instagram.toLowerCase() ? acc : null;
     const manual = !usable && o.instagram && typeof o.instagram_followers === "number" ? o.instagram_followers : null;
+    const listed = (["google", "tripadvisor"] as const).flatMap((source) => {
+      const l = REVIEWS.operators[o.id]?.[source];
+      return l ? [{ source, l }] : [];
+    });
+    const external_ratings: ExternalRating[] = listed.map(({ source, l }) => ({ source, rating: l.rating, count: l.count, url: l.url, rating_image: l.rating_image ?? null, as_of: l.as_of }));
+    const external_reviews: ExternalReview[] = listed.flatMap(({ l }) => l.reviews);
     return {
     id: o.id, name: o.name, category: o.category, bio: "", website: o.website, instagram: o.instagram,
     instagram_followers: usable?.followers ?? manual,
     instagram_followers_at: usable ? (usable.as_of ?? usable.fetched_at) : null,
     instagram_followers_source: usable ? (usable.source ?? "instagram-api") : manual !== null ? "manual" : null,
-    // "listed": taken from the shared operator list; Wayfind has not vetted these companies
+    external_ratings, external_reviews,
+    // "listed": taken from the shared operator list; getPackd has not vetted these companies
     verified_status: "listed", verification: {}, years_active: null, rating: null, review_count: 0, leaders: [],
     sample: false, source: "import", trips_imported: withTrips.has(o.id),
     };

@@ -4,7 +4,7 @@ import { Check, X, Star, Globe2, Instagram } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DepartureCard from "@/components/DepartureCard";
-import { VerifiedStamp, followerNote } from "@/components/TripBits";
+import { VerifiedStamp, followerNote, RatingBadges, RATING_SOURCES } from "@/components/TripBits";
 import { CompareTray } from "@/components/Overlays";
 import { SampleBadge } from "@/components/Motion";
 import { http } from "@/lib/api";
@@ -12,6 +12,46 @@ import { LABELS } from "@/lib/constants";
 import { compact } from "@/lib/format";
 
 const CHECKS = [["registration", "Business registration checked"], ["gst", "GST number verified"], ["leaders_checked", "Trip leaders background-checked"], ["refund_history", "Clean refund history"]];
+
+const stars = (n) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
+const when = (r) => r.relative || (r.date ? new Date(r.date).toLocaleString("en-IN", { month: "short", year: "numeric" }) : "");
+
+/** Reviews from the operator's Google Maps and Tripadvisor listings, credited to each site and author. */
+function ExternalReviews({ op }) {
+  const reviews = op.external_reviews || [];
+  if (!reviews.length) return null;
+  return (
+    <section className="rounded-[28px] bg-card p-6 shadow-soft" data-testid="operator-external-reviews">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="font-display text-2xl">What travellers say</h2>
+        <div className="flex flex-wrap gap-4 text-sm">
+          {(op.external_ratings || []).map((r) => (
+            <a key={r.source} href={r.url} target="_blank" rel="noreferrer" className="underline" data-testid={`read-all-${r.source}`}>
+              Read all {r.count.toLocaleString("en-IN")} on {RATING_SOURCES[r.source]}
+            </a>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {reviews.map((r, i) => (
+          <article key={i} className="rounded-2xl border p-4 text-sm" data-testid="external-review">
+            <div className="flex items-center gap-2">
+              {r.author_photo && <img src={r.author_photo} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full" />}
+              {r.author_url ? <a href={r.author_url} target="_blank" rel="noreferrer" className="font-semibold hover:underline">{r.author}</a> : <span className="font-semibold">{r.author}</span>}
+              <span className="ml-auto text-xs text-muted-foreground">{when(r)}</span>
+            </div>
+            <p className="mt-2 text-amber" aria-label={`${r.rating} of 5`}>{stars(r.rating)}</p>
+            {r.title && <p className="mt-1 font-semibold">{r.title}</p>}
+            <p className="mt-1 line-clamp-6 whitespace-pre-line text-muted-foreground">{r.text}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {r.url ? <a href={r.url} target="_blank" rel="noreferrer" className="underline">on {RATING_SOURCES[r.source]}</a> : `on ${RATING_SOURCES[r.source]}`}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function Operator() {
   const { id } = useParams();
@@ -33,6 +73,7 @@ export default function Operator() {
                 <VerifiedStamp status={op.verified_status} />
                 {op.years_active != null && <span>{op.years_active} years active</span>}
                 {op.rating != null && <span className="flex items-center gap-1"><Star size={14} className="fill-amber text-amber" /> {op.rating} · {op.review_count} reviews</span>}
+                <RatingBadges ratings={op.external_ratings} className="!text-sm !text-sand/80 [&_b]:!text-sand" />
                 {op.website && <a href={op.website} target="_blank" rel="noreferrer" data-testid="operator-website" className="flex items-center gap-1 underline"><Globe2 size={14} /> {op.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}
                 {op.instagram && <a href={`https://www.instagram.com/${op.instagram.replace("@", "")}/`} target="_blank" rel="noreferrer" data-testid="operator-instagram" className="flex items-center gap-1 underline"><Instagram size={14} /> {op.instagram}</a>}
                 {op.instagram_followers != null && <span data-testid="operator-instagram-followers" title="A sign of audience size, not a rating."><b>{compact(op.instagram_followers)}</b> Instagram followers{followerNote(op.instagram_followers_at, op.instagram_followers_source) ? ` · ${followerNote(op.instagram_followers_at, op.instagram_followers_source)}` : ""}</span>}
@@ -43,8 +84,9 @@ export default function Operator() {
         {op.source === "import" && (
           <p className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground" data-testid="operator-listing-note">
             {op.trips_imported
-              ? `Wayfind lists ${op.name} and reads its trips, dates and prices from its own website. We haven't vetted or rated this operator — check the details on their site before booking.`
-              : `${op.name} is on Wayfind's operator list, but we haven't read its trips yet. We haven't vetted or rated this operator.`}
+              ? `getPackd lists ${op.name} and reads its trips, dates and prices from its own website. We haven't vetted or rated this operator — check the details on their site before booking.`
+              : `${op.name} is on getPackd's operator list, but we haven't read its trips yet. We haven't vetted or rated this operator.`}
+            {op.external_ratings?.length > 0 && ` Star ratings and reviews are from ${op.external_ratings.map((r) => RATING_SOURCES[r.source]).join(" and ")}.`}
           </p>
         )}
         {op.source !== "import" && <div className="grid gap-6 md:grid-cols-2">
@@ -70,6 +112,7 @@ export default function Operator() {
             </div>
           </section>
         </div>}
+        <ExternalReviews op={op} />
         <section>
           <h2 className="font-display text-3xl">Upcoming departures <span className="text-muted-foreground">({departures.length})</span></h2>
           {departures.length === 0 && <p className="mt-4 text-muted-foreground" data-testid="operator-no-departures">We don't have this operator's departures yet. {op.website && <a href={op.website} target="_blank" rel="noreferrer" className="underline">See their trips on their website.</a>}</p>}

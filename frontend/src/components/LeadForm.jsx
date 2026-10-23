@@ -30,7 +30,7 @@ export default function LeadForm({ open, onOpenChange, trip, departures, depId }
           <div className="py-8 text-center" data-testid="lead-success">
             <PartyPopper className="mx-auto text-coral" size={40} />
             <p className="mt-4 font-display text-3xl">Enquiry sent!</p>
-            <p className="mt-2 text-sm text-muted-foreground">The operator usually replies within a day on WhatsApp or phone. No payment is taken on Wayfind.</p>
+            <p className="mt-2 text-sm text-muted-foreground">The operator usually replies within a day on WhatsApp or phone. No payment is taken on getPackd.</p>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-3">

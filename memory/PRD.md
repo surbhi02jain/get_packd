@@ -1,4 +1,4 @@
-# Wayfind — PRD
+# getPackd — PRD
 
 ## Original problem statement
 "Skyscanner for group trips": every group departure from Indian operators (global destinations) in one place, Skyscanner-style search + results (no wizard), powerful facets with live counts, like-for-like TRUE price, who else is going (age/gender/solo mix), verified operators, departures + day-by-day itineraries. Lead-gen only (Enquire / Go to operator), no payments. Meeting point at destination (no start city). Full spec in conversation (home, results, compare, trip detail, operator profile, category/SEO pages, alerts, shortlist voting, operator listing page, admin).

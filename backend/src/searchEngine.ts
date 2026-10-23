@@ -1,6 +1,6 @@
 import { addDays, cmpTuple, lookup, monthEnd, monthStart, parseISODate, pyInt, pyRound, pySum, weekday } from "./utils.js";
 import { DEST_BY_SLUG } from "./destinations.js";
-import type { Departure, GroupStats, Inclusions, Operator, Review, Trip } from "./types.js";
+import type { Departure, ExternalRating, GroupStats, Inclusions, Operator, Review, Trip } from "./types.js";
 
 const CHECKLIST: [string, string][] = [
   ["local_transport", "Local transport"], ["stays", "Stays"], ["meals", "Meals"],
@@ -97,7 +97,7 @@ export interface Item {
   rating: number | null;
   review_count: number;
   last_verified_days: number;
-  op: { id: string; name: string; category: string; verified_status: string; initials: string; instagram: string | null; instagram_followers: number | null; instagram_followers_at: string | null; instagram_followers_source: string | null };
+  op: { id: string; name: string; category: string; verified_status: string; initials: string; instagram: string | null; instagram_followers: number | null; instagram_followers_at: string | null; instagram_followers_source: string | null; ratings: ExternalRating[] };
   text: string;
 }
 
@@ -302,6 +302,7 @@ export function build(operators: Operator[], trips: Trip[], departures: Departur
         id: o.id, name: o.name, category: o.category, verified_status: o.verified_status,
         instagram: o.instagram || null, instagram_followers: o.instagram_followers ?? null,
         instagram_followers_at: o.instagram_followers_at ?? null, instagram_followers_source: o.instagram_followers_source ?? null,
+        ratings: o.external_ratings ?? [],
         initials: o.name.replaceAll("&", "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(),
       },
       text: [t.title, dest?.name ?? "", dest?.region ?? "", t.country.join(" "), t.destinations.join(" ")].join(" ").toLowerCase(),

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Star, Users, ChevronDown, Plane, Clock, Sparkles, AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useApp } from "@/context/AppState";
 import { STATUS, STYLES, LABELS } from "@/lib/constants";
 import { fmtRange, fmtDay, money, short } from "@/lib/format";
 import { HeartButton } from "./HeartButton";
-import { TruePricePopover, VerifiedStamp, AgeBar, GenderBar, InstaCount } from "./TripBits";
+import { TruePricePopover, VerifiedStamp, AgeBar, GenderBar, InstaCount, RatingBadges } from "./TripBits";
 import { Counter } from "./Motion";
 
 export function StatusPill({ status, seatsLeft }) {
@@ -69,9 +69,6 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
   const nav = useNavigate();
   const { compare, toggleCompare } = useApp();
   const [open, setOpen] = useState(false);
-  const rx = useMotionValue(0), ry = useMotionValue(0);
-  const srx = useSpring(rx, { stiffness: 150, damping: 18 }), sry = useSpring(ry, { stiffness: 150, damping: 18 });
-  const rotX = useTransform(srx, (v) => `${v}deg`), rotY = useTransform(sry, (v) => `${v}deg`);
   const inCompare = compare.some((c) => c.dep_id === card.dep_id);
   const cancelled = card.status === "cancelled";
   const link = `/trip/${card.trip_id}?dep=${encodeURIComponent(card.dep_id)}`;
@@ -81,16 +78,12 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
     <motion.article
       layout
       initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ type: "spring", stiffness: 260, damping: 28 }}
-      style={{ rotateX: rotX, rotateY: rotY, transformPerspective: 1200 }}
-      onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); ry.set(((e.clientX - r.left) / r.width - 0.5) * 3); rx.set(-((e.clientY - r.top) / r.height - 0.5) * 3); }}
-      onMouseLeave={() => { rx.set(0); ry.set(0); }}
-      whileHover={{ y: -4 }}
       data-testid={`departure-card-${card.dep_id}`}
       className={`group relative rounded-[24px] border border-border/60 bg-card shadow-soft transition-shadow hover:shadow-lift ${cancelled ? "opacity-70" : ""}`}
     >
       <div className="flex cursor-pointer flex-col md:flex-row" onClick={() => nav(link)}>
         <div className="relative h-48 overflow-hidden rounded-t-[24px] md:h-auto md:w-56 md:rounded-l-[24px] md:rounded-tr-none">
-          <img src={card.image} alt={card.destination} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+          <img src={card.image} alt={card.destination} loading="lazy" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-midnight/70 via-transparent to-transparent" />
           <div className="absolute left-3 top-3 flex gap-1.5"><StatusPill status={card.status} seatsLeft={card.seats_left} /></div>
           <HeartButton id={card.dep_id} className="absolute right-3 top-3" />
@@ -104,6 +97,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
               <span className="truncate text-xs font-medium text-muted-foreground">{card.op.name}</span>
             </Link>
             <VerifiedStamp status={card.op.verified_status} />
+            <RatingBadges ratings={card.op.ratings} />
             <InstaCount handle={card.op.instagram} followers={card.op.instagram_followers} at={card.op.instagram_followers_at} source={card.op.instagram_followers_source} />
           </div>
           <h3 className="mt-2 font-display text-xl font-semibold leading-snug">{card.title}</h3>

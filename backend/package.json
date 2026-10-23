@@ -1,5 +1,5 @@
 {
-  "name": "wayfind-backend",
+  "name": "getpackd-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
     "import:trips": "tsx src/importTrips.ts",
-    "import:instagram": "tsx src/importInstagram.ts"
+    "import:instagram": "tsx src/importInstagram.ts",
+    "import:reviews": "tsx src/importReviews.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

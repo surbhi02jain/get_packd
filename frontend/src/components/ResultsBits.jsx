@@ -1,50 +1,30 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronDown } from "lucide-react";
+import { X, Check, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LABELS } from "@/lib/constants";
 import { fmtDay, fmtRange, short, monthName, iso, d } from "@/lib/format";
 
-const Val = ({ k, children }) => (
-  <motion.span key={k} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="block font-elegant text-2xl sm:text-3xl">{children}</motion.span>
-);
+// Rating and verification sorts are left out: no operator has a rating yet and all are simply "listed".
+const SORTS = [["best", "Best match"], ["cheapest", "Cheapest"], ["soonest", "Soonest"], ["shortest", "Shortest"]];
 
-export function SortTabs({ sort, headline = {}, onChange }) {
-  const h = headline;
-  const tabs = [
-    ["best", "Best", h.best ? `${h.best.fit} fit · ${short(h.best.price)}` : "–"],
-    ["cheapest", "Cheapest", h.cheapest ? short(h.cheapest.price) : "–"],
-    ["soonest", "Soonest", h.soonest ? fmtDay(h.soonest.date) : "–"],
-  ];
-  const more = [["shortest", "Shortest", h.shortest && `${h.shortest.days} days`], ["rated", "Highest rated", h.rated && `★ ${h.rated.rating}`], ["verified", "Most verified", h.verified && `${h.verified.count} verified`]];
-  const activeMore = more.find((m) => m[0] === sort);
+export function SortMenu({ sort, onChange }) {
+  const label = (SORTS.find(([k]) => k === sort) || SORTS[0])[1];
   return (
-    <div className="flex gap-2" data-testid="sort-tabs">
-      {tabs.map(([k, l, v]) => (
-        <button key={k} data-testid={`sort-tab-${k}`} onClick={() => onChange(k)}
-          className={`relative flex-1 overflow-hidden rounded-2xl border px-4 py-3 text-left transition-colors ${sort === k ? "border-coral/70 text-foreground" : "bg-card/80 hover:border-foreground/30"}`}>
-          {/* the highlight glides between tabs */}
-          {sort === k && <motion.span layoutId="sort-glow" className="absolute inset-0 bg-gradient-to-br from-coral/25 via-coral/10 to-amber/10" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
-          <span className="relative block text-[10px] font-medium uppercase tracking-[.3em] opacity-70">{l}</span>
-          <span className="relative block"><Val k={v}>{v}</Val></span>
-          {sort === k && <motion.span layoutId="sort-underline" className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-coral" />}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button data-testid="sort-menu-trigger" className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted">
+          <span className="text-muted-foreground">Sort:</span> {label} <ChevronDown size={15} />
         </button>
-      ))}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button data-testid="sort-more-trigger" className={`flex items-center gap-1 rounded-2xl border px-4 text-sm font-medium ${activeMore ? "border-coral text-coral" : "bg-card"}`}>
-            <span className="hidden sm:inline">{activeMore ? activeMore[1] : "More"}</span><ChevronDown size={15} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {more.map(([k, l, v]) => (
-            <DropdownMenuItem key={k} data-testid={`sort-tab-${k}`} onClick={() => onChange(k)} className="flex justify-between gap-6">
-              <span>{l}</span><span className="font-mono text-xs text-muted-foreground">{v}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {SORTS.map(([k, l]) => (
+          <DropdownMenuItem key={k} data-testid={`sort-option-${k}`} onClick={() => onChange(k)} className="flex items-center justify-between gap-6">
+            <span>{l}</span>{(sort || "best") === k && <Check size={14} className="text-coral" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -60,7 +40,7 @@ export function PriceStrip({ data, params, update }) {
     else update({ start: `${r.month}-01`, end: null, flex: "month" });
   };
   return (
-    <div className="rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur" data-testid="price-strip">
+    <div className="rounded-3xl border border-border/60 bg-card p-4" data-testid="price-strip">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold">Cheapest departure by {mode === "weeks" ? "week" : "month"}</p>
         <div className="flex rounded-full bg-muted p-0.5 text-xs">
@@ -74,7 +54,7 @@ export function PriceStrip({ data, params, update }) {
           return (
             <button key={keyOf(r)} data-testid={`price-strip-bar-${keyOf(r)}`} onClick={() => pick(r)} title={`${r.count} departures`} className="group flex min-w-[44px] flex-1 flex-col items-center justify-end gap-1">
               <span className={`font-mono text-[10px] ${cheapest ? "font-bold text-mint" : "text-muted-foreground"}`}>{short(r.min_price)}</span>
-              <motion.span initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: i * 0.025, type: "spring", stiffness: 200, damping: 20 }} style={{ height: h, originY: 1 }}
+              <span style={{ height: h }}
                 className={`w-full rounded-t-lg transition-colors ${active(r) ? "bg-coral" : cheapest ? "bg-mint" : "bg-midnight/15 group-hover:bg-coral/60 dark:bg-sand/20"}`} />
               <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">{mode === "weeks" ? fmtDay(r.week) : monthName(r.month)}</span>
             </button>
