@@ -1,0 +1,34 @@
+# Render Blueprint for the getPackd API (backend/). In Render: New + → Blueprint → pick this repo.
+# Render asks for the values marked `sync: false`; ADMIN_PASSWORD is generated for you (see it under Environment).
+services:
+  - type: web
+    name: getpackd-api
+    runtime: node
+    rootDir: backend
+    plan: starter            # stays awake; "free" sleeps after 15 minutes without visitors
+    region: singapore        # the closest Render region to India
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: yarn start
+    healthCheckPath: /api/
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DB_NAME
+        value: getpackd
+      - key: MONGO_URL          # the MongoDB Atlas connection string
+        sync: false
+      - key: CORS_ORIGINS       # the website's address, e.g. https://getpackd.vercel.app
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD     # a strong random password, made by Render
+        generateValue: true
+      - key: IG_ACCESS_TOKEN    # Instagram follower counts (optional)
+        sync: false
+      - key: IG_USER_ID
+        sync: false
+      - key: IG_GRAPH_VERSION
+        value: v26.0
