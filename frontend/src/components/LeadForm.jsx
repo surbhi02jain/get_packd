@@ -1,12 +1,16 @@
 import { useState } from "react";
 import confetti from "canvas-confetti";
-import { Loader2, PartyPopper } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { http } from "@/lib/api";
 import { fmtRange, short } from "@/lib/format";
+import { PassportStamp, PackingList, packingList } from "./Stamp";
+import { inkColor } from "@/components/Ink";
 
-export default function LeadForm({ open, onOpenChange, trip, departures, depId }) {
+const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+export default function LeadForm({ open, onOpenChange, trip, departures, depId, destination }) {
   const [f, setF] = useState({ name: "", phone: "", email: "", party_size: 1, message: "" });
   const [dep, setDep] = useState(depId);
   const [busy, setBusy] = useState(false);
@@ -18,7 +22,8 @@ export default function LeadForm({ open, onOpenChange, trip, departures, depId }
     try {
       await http.post("/leads", { ...f, party_size: +f.party_size, dep_id: dep || depId, trip_id: trip.id });
       setDone(true);
-      confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 }, colors: ["#FF6B4A", "#FFB547", "#10B981", "#FAF6EF"], disableForReducedMotion: true });
+      // a short burst as the stamp lands
+      setTimeout(() => confetti({ particleCount: 90, spread: 70, origin: { y: 0.45 }, colors: [inkColor(), "#c9302a", "#16181b", "#fffdf9"], disableForReducedMotion: true }), 250);
     } catch { toast.error("Please add your name and a valid phone number"); }
     setBusy(false);
   };
@@ -26,13 +31,19 @@ export default function LeadForm({ open, onOpenChange, trip, departures, depId }
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setDone(false); }}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl" data-testid="lead-form-dialog">
-        {done ? (
-          <div className="py-8 text-center" data-testid="lead-success">
-            <PartyPopper className="mx-auto text-coral" size={40} />
-            <p className="mt-4 font-display text-3xl">Enquiry sent!</p>
-            <p className="mt-2 text-sm text-muted-foreground">The operator usually replies within a day on WhatsApp or phone. No payment is taken on getPackd.</p>
-          </div>
-        ) : (
+        {done ? (() => {
+          const chosen = departures.find((x) => x.dep_id === (dep || depId));
+          const place = destination || chosen?.destination || trip.title;
+          return (
+            <div className="py-4 text-center" data-testid="lead-success">
+              <PassportStamp destination={place} date={chosen?.start} />
+              <p className="mt-2 font-display text-3xl">Enquiry sent!</p>
+              <p className="mt-2 text-sm text-muted-foreground">The operator usually replies within a day on WhatsApp or phone. No payment is taken on getPackd.</p>
+              <PackingList destination={place} month={chosen ? MONTH[+chosen.start.slice(5, 7) - 1] : null}
+                items={packingList({ climate: trip.climate_tags, season: chosen?.season, intl: trip.domestic_or_international === "international" })} />
+            </div>
+          );
+        })() : (
           <form onSubmit={submit} className="space-y-3">
             <DialogHeader>
               <DialogTitle className="font-display text-2xl">Enquire about this trip</DialogTitle>
@@ -52,6 +63,28 @@ export default function LeadForm({ open, onOpenChange, trip, departures, depId }
               {busy && <Loader2 size={16} className="animate-spin" />} Send enquiry
             </button>
           </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Shown when someone leaves for an operator's own site to book: a "bon voyage" stamp and a packing list to come back to. */
+export function OffToOperator({ open, onOpenChange, trip, dep, destination, operator }) {
+  const place = destination || dep?.destination || trip.title;
+  const whose = /s$/i.test(operator) ? `${operator}'` : `${operator}'s`;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl" data-testid="off-to-operator-dialog">
+        {open && (
+          <div className="py-4 text-center">
+            <DialogHeader className="sr-only"><DialogTitle>Bon voyage</DialogTitle><DialogDescription>{whose} page opened in a new tab</DialogDescription></DialogHeader>
+            <PassportStamp destination={place} date={dep?.start} rim="BON VOYAGE" />
+            <p className="mt-2 font-display text-3xl">Bon voyage!</p>
+            <p className="mt-2 text-sm text-muted-foreground">{whose} page is open in a new tab. You book with them directly; getPackd takes no commission.</p>
+            <PackingList destination={place} month={dep ? MONTH[+dep.start.slice(5, 7) - 1] : null}
+              items={packingList({ climate: trip.climate_tags, season: dep?.season, intl: trip.domestic_or_international === "international" })} />
+          </div>
         )}
       </DialogContent>
     </Dialog>

@@ -1,31 +1,34 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Star, Users, ChevronDown, Plane, Clock, Sparkles, AlertTriangle } from "lucide-react";
+import { MapPin, Star, Users, ChevronDown, Plane, Clock, Sparkles } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useApp } from "@/context/AppState";
 import { STATUS, STYLES, LABELS } from "@/lib/constants";
-import { fmtRange, fmtDay, money, short } from "@/lib/format";
+import { fmtRange, fmtDay, money } from "@/lib/format";
 import { HeartButton } from "./HeartButton";
 import { TruePricePopover, VerifiedStamp, AgeBar, GenderBar, InstaCount, RatingBadges } from "./TripBits";
 import { Counter } from "./Motion";
+import { SeasonPill } from "./Season";
+import TripPhoto from "./TripPhoto";
 
-export function StatusPill({ status, seatsLeft }) {
+// `onPhoto`: over a picture the pill gets a solid paper background, as a tinted one can vanish into a dark photo
+export function StatusPill({ status, seatsLeft, onPhoto = false }) {
   const s = STATUS[status];
-  return <span data-testid="status-pill" className={`chip ${s.cls} ${status === "filling" && seatsLeft <= 2 ? "pulse-last" : ""}`}>{s.label}</span>;
+  return <span data-testid="status-pill" className={`chip ${s.cls} ${onPhoto ? "!bg-[#fffdf9] shadow-[0_1px_3px_rgba(0,0,0,.2)]" : ""} ${status === "filling" && seatsLeft <= 2 ? "pulse-last" : ""}`}>{s.label}</span>;
 }
 
 function SeatsBar({ left, total, status }) {
   if (left == null) return null;
   // some operators publish seats left without the group size
-  if (total == null) return <p className={`text-[11px] ${left <= 3 ? "font-semibold text-coral" : "text-muted-foreground"}`}>{left} seats left</p>;
+  if (total == null) return <p className={`text-[11px] ${left <= 3 ? "font-semibold text-[#c9302a]" : "text-muted-foreground"}`}>{left} seats left</p>;
   const pct = Math.max(4, ((total - left) / total) * 100);
   return (
     <div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <motion.div className={`h-full rounded-full ${left <= 3 ? "bg-coral" : "bg-midnight dark:bg-sand"}`} initial={{ width: 0 }} whileInView={{ width: `${pct}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: "easeOut" }} />
+        <motion.div className={`h-full rounded-full ${left <= 3 ? "bg-[#c9302a]" : "bg-midnight dark:bg-sand"}`} initial={{ width: 0 }} whileInView={{ width: `${pct}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: "easeOut" }} />
       </div>
-      <p className={`mt-1 text-[11px] ${left <= 3 && status !== "cancelled" ? "font-semibold text-coral" : "text-muted-foreground"}`}>
+      <p className={`mt-1 text-[11px] ${left <= 3 && status !== "cancelled" ? "font-semibold text-[#c9302a]" : "text-muted-foreground"}`}>
         {status === "cancelled" ? "Departure cancelled" : `${left} of ${total} seats left`}
       </p>
     </div>
@@ -65,9 +68,11 @@ export function Price({ card, showTrue = true, big }) {
   );
 }
 
-export default function DepartureCard({ card, cluster, showTrue = true, showFitRing }) {
+export default function DepartureCard({ card, cluster, showTrue = true, showFitRing, budget }) {
   const nav = useNavigate();
-  const { compare, toggleCompare } = useApp();
+  const { compare, toggleCompare, currency } = useApp();
+  // with a budget set in the search, how far under it this departure is, at the price being shown
+  const underBudget = budget > 0 ? budget - (showTrue ? card.true_price : card.price) : 0;
   const [open, setOpen] = useState(false);
   const inCompare = compare.some((c) => c.dep_id === card.dep_id);
   const cancelled = card.status === "cancelled";
@@ -83,9 +88,9 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
     >
       <div className="flex cursor-pointer flex-col md:flex-row" onClick={() => nav(link)}>
         <div className="relative h-48 overflow-hidden rounded-t-[24px] md:h-auto md:w-56 md:rounded-l-[24px] md:rounded-tr-none">
-          <img src={card.image} alt={card.destination} loading="lazy" className="h-full w-full object-cover" />
+          <TripPhoto src={card.image} dest={card.dest_slug} alt={card.destination} loading="lazy" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-midnight/70 via-transparent to-transparent" />
-          <div className="absolute left-3 top-3 flex gap-1.5"><StatusPill status={card.status} seatsLeft={card.seats_left} /></div>
+          <div className="absolute left-3 top-3 flex gap-1.5"><StatusPill status={card.status} seatsLeft={card.seats_left} onPhoto /></div>
           <HeartButton id={card.dep_id} className="absolute right-3 top-3" />
           <p className="absolute bottom-3 left-3 flex items-center gap-1 text-sm font-semibold text-white"><MapPin size={14} /> {card.destination}</p>
         </div>
@@ -105,9 +110,10 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
             <span className="font-semibold text-foreground">{fmtRange(card.start, card.end)}</span>
             <span>{card.duration}D/{card.duration - 1}N</span>
             {card.max_group != null && <span className="flex items-center gap-1"><Users size={13} /> {card.min_group != null ? `${card.min_group}–${card.max_group}` : `Up to ${card.max_group}`} people</span>}
-            {card.rating != null && <span className="flex items-center gap-1"><Star size={13} className="fill-amber text-amber" /> {card.rating} ({card.review_count})</span>}
+            {card.rating != null && <span className="flex items-center gap-1"><Star size={13} className="fill-[#16181b] text-[#16181b]" /> {card.rating} ({card.review_count})</span>}
           </p>
-          {card.meeting_point && <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground" data-testid="card-meeting-point"><MapPin size={12} className="text-coral" /> Meet: {card.meeting_point}</p>}
+          {(card.starts_from || card.meeting_point) && <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground" data-testid="card-meeting-point"><MapPin size={12} className="text-[#5f656b]" />
+            {card.starts_from ? `From ${card.starts_from}${card.starts_from_how === "included" ? " (travel included)" : ""}` : `Meet: ${card.meeting_point}`}</p>}
 
           {card.fit_label && (
             <p data-testid="fit-chip" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -116,6 +122,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
           )}
 
           <div className="mt-3 flex flex-wrap gap-1.5">
+            <SeasonPill season={card.season} />
             {card.categories.slice(0, 3).map((c) => (
               <span key={c} className="chip bg-muted" style={{ color: STYLES[c]?.color }}>{STYLES[c]?.label || c}</span>
             ))}
@@ -130,15 +137,18 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
               <SeatsBar left={card.seats_left} total={card.seats_total} status={card.status} />
             </div>
           )}
-          {restricted && <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground"><AlertTriangle size={11} /> {card.gender_policy === "women_only" ? "Open to women travellers only" : "Open to men travellers only"}</p>}
+          {restricted && <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11} aria-hidden /> {card.gender_policy === "women_only" ? "A women-only group" : "A men-only group"}</p>}
         </div>
 
         <div className="ticket-cut relative flex flex-col justify-between gap-3 border-t-2 border-dashed p-5 md:w-60 md:border-l-2 md:border-t-0">
           <div className="flex items-start justify-between gap-2">
-            <Price card={card} showTrue={showTrue} />
+            <div>
+              <Price card={card} showTrue={showTrue} />
+              {underBudget > 0 && <p className="mt-1 font-mono text-[11px] text-mint" data-testid="under-budget">{money(underBudget, currency, card.dtype === "international")} under your budget</p>}
+            </div>
             {showFitRing && card.fit != null && <FitRing value={card.fit} />}
           </div>
-          {card.flights_est > 0 && <p className="flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="flights-note"><Plane size={11} /> Flights not included – est. {short(card.flights_est)}</p>}
+          {card.flights_est > 0 && <p className="flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="flights-note"><Plane size={11} /> Flights not included – est. {money(card.flights_est, currency, true, true)}</p>}
           <div className="flex items-center justify-between gap-2">
             <label onClick={(e) => e.stopPropagation()} className="flex cursor-pointer items-center gap-2 text-xs font-medium">
               <Checkbox data-testid={`compare-checkbox-${card.dep_id}`} checked={inCompare} onCheckedChange={() => toggleCompare(card)} /> Compare
@@ -154,7 +164,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
       {cluster && cluster.count > 1 && (
         <div className="border-t px-5 py-3">
           <button data-testid={`cluster-toggle-${card.trip_id}`} onClick={() => setOpen(!open)} className="flex w-full items-center justify-between text-sm">
-            <span><b>{cluster.count} departures</b> · from {short(cluster.from_price)}</span>
+            <span><b>{cluster.count} departures</b> · from {money(cluster.from_price, currency, true)}</span>
             <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
           <AnimatePresence>
@@ -165,7 +175,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
                     <Link key={dp.dep_id} to={`/trip/${card.trip_id}?dep=${encodeURIComponent(dp.dep_id)}`} data-testid={`cluster-dep-${dp.dep_id}`}
                       className={`shrink-0 rounded-2xl border px-3 py-2 text-xs transition-colors hover:border-coral ${dp.dep_id === card.dep_id ? "border-coral bg-coral/5" : ""}`}>
                       <p className="font-semibold">{fmtDay(dp.start)}</p>
-                      <p className="font-mono">{short(showTrue ? dp.true_price : dp.price)}</p>
+                      <p className="font-mono">{money(showTrue ? dp.true_price : dp.price, currency, true)}</p>
                       <p className={dp.status === "cancelled" ? "text-rose-600" : "text-muted-foreground"}>{dp.status === "cancelled" ? "cancelled" : dp.seats_left != null ? `${dp.seats_left} left` : "open"}</p>
                     </Link>
                   ))}

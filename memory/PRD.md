@@ -6,7 +6,7 @@
 ## User choices
 - NL search: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929) via Emergent LLM key
 - Alerts: saved to DB only (no emails sent yet)
-- Admin: admin / wayfind2026 (backend .env)
+- Admin: ADMIN_USERNAME / ADMIN_PASSWORD in backend/.env (not written down anywhere else)
 - Hero globe: lightweight d3-geo canvas (no three.js)
 
 ## Architecture

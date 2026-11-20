@@ -5,9 +5,10 @@ import { X, ArrowRight, Wand2, BellRing, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useApp } from "@/context/AppState";
-import { http } from "@/lib/api";
-import { STYLES, LABELS } from "@/lib/constants";
+import { http, errorText } from "@/lib/api";
+import { HIDDEN, STYLES, LABELS } from "@/lib/constants";
 import { short } from "@/lib/format";
+import TripPhoto from "./TripPhoto";
 
 export function CompareTray() {
   const { compare, toggleCompare, setCompare } = useApp();
@@ -22,13 +23,13 @@ export function CompareTray() {
             className="pointer-events-auto flex w-full max-w-5xl items-center gap-3 rounded-3xl border border-white/15 bg-midnight p-3 text-sand shadow-2xl" data-testid="compare-tray">
             {/* on phones the tray is one short row; the trip thumbnails only show from tablet width up */}
             <div className="min-w-0 flex-1 pl-2 sm:flex-none">
-              <p className="text-sm font-semibold">Compare trips <span className="font-mono text-xs text-amber">{n}/4</span></p>
+              <p className="text-sm font-semibold">Compare trips <span className="font-mono text-xs text-[#aab5e4]">{n}/4</span></p>
               <p className="hidden text-[11px] text-sand/60 sm:block" data-testid="compare-tray-hint">{ready ? "See them side by side" : "Tick one more trip to compare"}</p>
             </div>
             <div className="hidden min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar sm:flex">
               {compare.map((c) => (
                 <div key={c.dep_id} className="flex shrink-0 items-center gap-2 rounded-2xl bg-white/10 py-1 pl-1 pr-2">
-                  <img src={c.image} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                  <TripPhoto src={c.image} dest={c.dest_slug} className="h-9 w-9 rounded-xl object-cover" />
                   <span className="max-w-[110px] truncate text-xs">{c.title}</span>
                   <button data-testid={`compare-tray-remove-${c.dep_id}`} onClick={() => toggleCompare(c)} aria-label={`Remove ${c.title}`} className="rounded-full p-0.5 hover:bg-white/15"><X size={14} /></button>
                 </div>
@@ -51,18 +52,18 @@ export function CompareTray() {
   );
 }
 
+// saved searches are kept on your account, and go to its email
 export function SaveSearchDialog({ open, onOpenChange, params, count }) {
-  const [email, setEmail] = useState("");
+  const { user } = useApp();
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
     try {
-      const filters = Object.fromEntries(Object.entries(params).filter(([k, v]) => v && k !== "view").map(([k, v]) => [k, String(v)]));
-      await http.post("/alerts", { email, filters, label: params.q || "Anywhere" });
-      localStorage.setItem("wf_email", email);
+      const filters = Object.fromEntries(Object.entries(params).filter(([k, v]) => v && !["view", "show"].includes(k)).map(([k, v]) => [k, String(v)]));
+      await http.post("/alerts", { email: user.email, filters, label: params.q || "Anywhere" });
       toast.success("Alert saved — we'll email you about new departures and price drops");
       onOpenChange(false);
-    } catch { toast.error("Please enter a valid email"); }
+    } catch (e) { toast.error(errorText(e)); }
     setBusy(false);
   };
   return (
@@ -70,12 +71,13 @@ export function SaveSearchDialog({ open, onOpenChange, params, count }) {
       <DialogContent className="rounded-3xl" data-testid="save-search-dialog">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Save this search</DialogTitle>
-          <DialogDescription>Get an email when new departures match, or prices drop. {count} trips match right now.</DialogDescription>
+          <DialogDescription>Get an email when new departures match, or prices drop. {count} {count === 1 ? "departure matches" : "departures match"} right now.</DialogDescription>
         </DialogHeader>
-        <input data-testid="save-search-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="rounded-2xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-coral" />
-        <button data-testid="save-search-submit" disabled={busy} onClick={save} className="flex items-center justify-center gap-2 rounded-2xl bg-coral py-3 font-semibold text-white">
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <BellRing size={16} />} Notify me
-        </button>
+        {user ? (
+          <button data-testid="save-search-submit" disabled={busy} onClick={save} className="flex items-center justify-center gap-2 rounded-2xl bg-coral py-3 font-semibold text-white">
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <BellRing size={16} />} Notify me at {user.email}
+          </button>
+        ) : <p className="text-sm">Alerts are kept on your account. <Link to="/login" className="font-semibold text-coral underline">Log in</Link> to save this search.</p>}
         <p className="text-xs text-muted-foreground">Alerts are saved in V1; email delivery is coming soon.</p>
       </DialogContent>
     </Dialog>
@@ -85,7 +87,7 @@ export function SaveSearchDialog({ open, onOpenChange, params, count }) {
 const Q = [
   ["fq_age", "How old are you?", "number"],
   ["fq_pace", "Your ideal pace?", Object.entries(LABELS.pace)],
-  ["fq_style", "What do you love? (pick any)", Object.entries(STYLES).map(([k, v]) => [k, v.label]), true],
+  ["fq_style", "What do you love? (pick any)", Object.entries(STYLES).filter(([k]) => !HIDDEN.style.includes(k)).map(([k, v]) => [k, v.label]), true],
   ["fq_budget", "Max true price you'd pay?", [[30000, "₹30k"], [60000, "₹60k"], [100000, "₹1L"], [200000, "₹2L"]]],
   ["fq_size", "Group size you enjoy?", Object.entries(LABELS.size)],
   ["fq_stay", "Where do you like to sleep?", Object.entries(LABELS.stay)],
@@ -105,7 +107,7 @@ export function FitQuiz({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl" data-testid="fit-quiz-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-display text-2xl"><Wand2 size={20} className="text-coral" /> Your Fit score</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 font-display text-2xl"><Wand2 size={20} className="text-[#16181b]" /> Your Fit score</DialogTitle>
           <DialogDescription>Question {step + 1} of 6 · stays on this device</DialogDescription>
         </DialogHeader>
         <div className="h-1 overflow-hidden rounded-full bg-muted"><motion.div className="h-full bg-coral" animate={{ width: `${((step + 1) / 6) * 100}%` }} /></div>
@@ -138,17 +140,17 @@ export function EmptyState({ relaxations = [], update, clear }) {
   return (
     <div className="flex flex-col items-center rounded-3xl bg-card px-6 py-14 text-center shadow-soft" data-testid="empty-state">
       <svg width="140" height="110" viewBox="0 0 140 110" fill="none" className="mb-4">
-        <path d="M10 95 L50 35 L70 60 L88 40 L130 95 Z" fill="#FFB547" opacity=".35" />
-        <path d="M40 95 L70 55 L100 95 Z" fill="#FF6B4A" opacity=".8" />
-        <circle cx="108" cy="22" r="10" fill="#FFB547" />
+        <path d="M10 95 L50 35 L70 60 L88 40 L130 95 Z" fill="#16181b" opacity=".08" />
+        <path d="M40 95 L70 55 L100 95 Z" fill="#16181b" opacity=".3" />
+        <circle cx="108" cy="22" r="10" fill="#c9302a" opacity=".8" />
         <path d="M5 98 H135" stroke="currentColor" strokeOpacity=".3" strokeDasharray="4 6" strokeWidth="2" />
       </svg>
       <h3 className="font-display text-2xl">No departures match — yet</h3>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">Try one of these one-tap tweaks. Each shows how many trips it would add.</p>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">Try one of these one-tap tweaks. Each shows how many departures it would add.</p>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {relaxations.map((r, i) => (
           <button key={i} data-testid={`relaxation-${i}`} onClick={() => update(r.patch)} className="rounded-2xl border-2 border-dashed border-coral/50 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-coral hover:text-white">
-            {r.label} <b className="ml-1">→ +{r.add} trips</b>
+            {r.label} <b className="ml-1">→ +{r.add} {r.add === 1 ? "departure" : "departures"}</b>
           </button>
         ))}
         <button data-testid="empty-clear-all" onClick={clear} className="rounded-2xl px-4 py-2.5 text-sm underline">Clear all filters</button>

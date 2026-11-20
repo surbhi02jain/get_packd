@@ -33,7 +33,7 @@ export function Magnetic({ children, className = "", strength = 0.25 }) {
 
 export function SampleBadge({ className = "" }) {
   return (
-    <span data-testid="listing-source-badge" title="Trips, dates and prices are read from each operator's own website. Check the operator's page before you book." className={`label-mono rounded-full border border-dashed border-amber-500/60 bg-amber-50 px-2 py-0.5 !text-amber-800 dark:bg-amber-950/40 dark:!text-amber-300 ${className}`}>
+    <span data-testid="listing-source-badge" title="Trips, dates and prices are read from each operator's own website. Check the operator's page before you book." className={`label-mono rounded-full border border-dashed border-[#16181b]/30 px-2 py-0.5 !text-[#5f656b] ${className}`}>
       Prices from operator sites
     </span>
   );

@@ -4,9 +4,10 @@ import { X, Check, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LABELS } from "@/lib/constants";
 import { fmtDay, fmtRange, short, monthName, iso, d } from "@/lib/format";
+import { SeasonDot, monthKind, seasonLine } from "@/components/Season";
 
 // Rating and verification sorts are left out: no operator has a rating yet and all are simply "listed".
-const SORTS = [["best", "Best match"], ["cheapest", "Cheapest"], ["soonest", "Soonest"], ["shortest", "Shortest"]];
+const SORTS = [["best", "Best match"], ["cheapest", "Price: low to high"], ["priciest", "Price: high to low"], ["soonest", "Soonest"], ["shortest", "Shortest"]];
 
 export function SortMenu({ sort, onChange }) {
   const label = (SORTS.find(([k]) => k === sort) || SORTS[0])[1];
@@ -28,7 +29,7 @@ export function SortMenu({ sort, onChange }) {
   );
 }
 
-export function PriceStrip({ data, params, update }) {
+export function PriceStrip({ data, season, params, update }) {
   const [mode, setMode] = useState("weeks");
   const rows = (data?.[mode] || []).filter((r) => r.count);
   if (!rows.length) return null;
@@ -42,7 +43,10 @@ export function PriceStrip({ data, params, update }) {
   return (
     <div className="rounded-3xl border border-border/60 bg-card p-4" data-testid="price-strip">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold">Cheapest departure by {mode === "weeks" ? "week" : "month"}</p>
+        <div>
+          <p className="text-sm font-semibold">Cheapest departure by {mode === "weeks" ? "week" : "month"}</p>
+          {season && <p className="mt-0.5 text-xs text-muted-foreground" data-testid="price-strip-season">{season.destination}: {seasonLine(season)}</p>}
+        </div>
         <div className="flex rounded-full bg-muted p-0.5 text-xs">
           {["weeks", "months"].map((m) => <button key={m} data-testid={`price-strip-mode-${m}`} onClick={() => setMode(m)} className={`rounded-full px-3 py-1 capitalize ${mode === m ? "bg-card shadow-sm font-semibold" : ""}`}>{m}</button>)}
         </div>
@@ -57,6 +61,7 @@ export function PriceStrip({ data, params, update }) {
               <span style={{ height: h }}
                 className={`w-full rounded-t-lg transition-colors ${active(r) ? "bg-coral" : cheapest ? "bg-mint" : "bg-midnight/15 group-hover:bg-coral/60 dark:bg-sand/20"}`} />
               <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">{mode === "weeks" ? fmtDay(r.week) : monthName(r.month)}</span>
+              {season && <SeasonDot kind={monthKind(season, Number(keyOf(r).slice(5, 7)))} />}
             </button>
           );
         })}

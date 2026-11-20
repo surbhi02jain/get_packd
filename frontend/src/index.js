@@ -9,6 +9,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       refetchOnWindowFocus: false,
+      // a "not found" (or any other 4xx) won't change by asking again: show it at once; network and server errors get two retries
+      retry: (n, e) => !(e?.response?.status >= 400 && e.response.status < 500) && n < 2,
     },
   },
 });

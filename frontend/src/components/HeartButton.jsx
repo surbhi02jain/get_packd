@@ -2,8 +2,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 import { useApp } from "@/context/AppState";
+import { track } from "@/lib/analytics";
 
-export function HeartButton({ id, className = "" }) {
+// `onPhoto`: no circle behind it, just a white-edged heart over a see-through dark fill, as on a photo on Airbnb
+export function HeartButton({ id, className = "", onPhoto = false }) {
   const { hearts, toggleHeart } = useApp();
   const on = hearts.includes(id);
   const [burst, setBurst] = useState(0);
@@ -11,11 +13,16 @@ export function HeartButton({ id, className = "" }) {
     <button
       data-testid={`heart-btn-${id}`}
       aria-label={on ? "Remove from shortlist" : "Save to shortlist"}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!on) setBurst((b) => b + 1); toggleHeart(id); }}
-      className={`relative grid h-9 w-9 place-items-center rounded-full bg-white/90 text-midnight shadow-soft backdrop-blur transition-transform hover:scale-110 ${className}`}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!on) { setBurst((b) => b + 1); track("save_trip", { dep: id }); } toggleHeart(id); }}
+      // the tap area reaches 44px (the after: layer) while the heart itself stays its size
+      className={onPhoto
+        ? `relative grid h-8 w-8 place-items-center transition-transform after:absolute after:-inset-1.5 after:content-[''] hover:scale-110 ${className}`
+        : `relative grid h-9 w-9 place-items-center rounded-full bg-white/90 text-midnight shadow-soft backdrop-blur transition-transform after:absolute after:-inset-1 after:content-[''] hover:scale-110 ${className}`}
     >
       <motion.span animate={on ? { scale: [1, 1.35, 1] } : { scale: 1 }} transition={{ duration: 0.35 }}>
-        <Heart size={17} className={on ? "fill-coral text-coral" : ""} />
+        {onPhoto
+          ? <Heart size={24} strokeWidth={2} className={on ? "fill-coral text-white" : "fill-black/50 text-white"} />
+          : <Heart size={17} className={on ? "fill-coral text-coral" : ""} />}
       </motion.span>
       <AnimatePresence>
         {burst > 0 && on && (

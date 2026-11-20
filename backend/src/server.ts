@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,10 +9,16 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { MongoClient } from "mongodb";
 import { z } from "zod";
 
-import { PyRandom, addDays, cmpTuple, nowIso, parseISODate } from "./utils.js";
+import { PyRandom, addDays, cmpTuple, imageUrl, nowIso, parseISODate } from "./utils.js";
 import * as se from "./searchEngine.js";
-import { DESTINATIONS, DEST_BY_SLUG } from "./destinations.js";
+import { DESTINATIONS, DEST_BY_SLUG, KEYWORDS } from "./destinations.js";
+import { factsFor } from "./facts.js";
+import { seasonInfo } from "./seasons.js";
+import { ALL_VISAS, DEST_COUNTRIES, VISAS, VISAS_CHECKED, visasFor, type VisaInfo } from "./visas.js";
 import { type ImportResult, runImport } from "./importTrips.js";
+import * as acct from "./accounts.js";
+import * as analytics from "./analytics.js";
+import { HOUR, MINUTE, limit } from "./rateLimit.js";
 import { runInstagramImport } from "./importInstagram.js";
 import { reviewSources, runReviewImport } from "./importReviews.js";
 import { fetchedAt, instagramFetchedAt, itinerary, loadSeed, reviewsFetchedAt, seedVersion, slugify } from "./seedData.js";
@@ -50,7 +56,17 @@ async function seedIfNeeded() {
   const collections: [string, object[]][] = [["operators", operators], ["trips", trips], ["departures", departures], ["group_stats", []], ["reviews", []]];
   for (const [name, docs] of collections) {
     await db.collection(name).deleteMany(["operators", "trips", "reviews"].includes(name) ? replaced : {});
-    if (docs.length) await db.collection(name).insertMany(docs.map((d) => ({ ...d })));
+    // Two backends starting together on one database both delete, then both insert, and every record ended up
+    // twice. With ids unique, the second insert is refused record by record and the first copy stands.
+    if (["operators", "trips", "departures"].includes(name)) await db.collection(name).createIndex({ id: 1 }, { unique: true });
+    if (!docs.length) continue;
+    try {
+      await db.collection(name).insertMany(docs.map((d) => ({ ...d })), { ordered: false });
+    } catch (e) {
+      const errs = (e as { writeErrors?: { code: number }[] }).writeErrors;
+      if (!errs?.length || errs.some((w) => w.code !== 11000)) throw e;
+      console.info(`Seeding ${name}: ${errs.length} already present (another backend seeded at the same time)`);
+    }
   }
   await db.collection("meta").updateOne({ key: "seed" }, { $set: { version } }, { upsert: true });
   console.info(`Seeded ${operators.length} operators, ${trips.length} trips, ${departures.length} departures`);
@@ -159,6 +175,9 @@ const int = z.union([z.number().int(), z.string().regex(/^\s*[+-]?\d+\s*$/).tran
 
 const app = express();
 const api = express.Router();
+// behind a host's proxy, the visitor's address is in X-Forwarded-For; TRUST_PROXY is how many proxies to trust (1 for
+// most hosts, 0 when the API is reached directly). Rate limits, login throttling and analytics all go by it.
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 
 const origins = (process.env.CORS_ORIGINS ?? "*").split(",").map((o) => o.trim());
 app.use(cors({ origin: origins.includes("*") ? true : origins, credentials: true }));
@@ -177,37 +196,52 @@ api.get("/search", (req, res) => {
 api.get("/meta", async (_req, res) => {
   const ops = await db.collection("operators").find({}, { projection: { _id: 0, id: 1, name: 1, category: 1, verified_status: 1 } }).limit(500).toArray();
   const suggestions: { label: string; sub: string; value: string; type: string }[] = [];
+  // each name once (Kerala the destination, not again as Kerala the region), whichever kind comes first
+  const seen = new Set<string>();
+  const add = (s: { label: string; sub: string; value: string; type: string }) => {
+    const k = s.label.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    suggestions.push(s);
+  };
   // only suggest places that currently have departures
-  const live = new Set(se.STATE.items.map((i) => i.dest_slug));
+  const upcoming = se.upcoming();
+  const live = new Set(upcoming.map((i) => i.dest_slug));
   const listed = DESTINATIONS.filter((d) => live.has(d.slug));
   for (const d of listed) {
-    suggestions.push({ label: d.name, sub: `${d.region} · ${d.countries.join(", ")}`, value: d.name, type: "destination" });
-    for (const pl of d.places) suggestions.push({ label: pl, sub: d.name, value: pl, type: "city" });
+    const sub = [...new Set([d.region, ...d.countries])].join(" · ");
+    add({ label: d.name, sub, value: d.name, type: "destination" });
+    for (const pl of d.places) add({ label: pl, sub: d.name, value: pl, type: "city" });
   }
-  const seen = new Set<string>();
+  // the towns and treks trips are named after (Kasol, Gokarna, Kedarkantha...), when a trip there is coming up
+  const allText = upcoming.map((i) => i.text).join("\n");
   for (const d of listed) {
-    for (const c of [...d.countries, d.region]) {
-      if (seen.has(c)) continue;
-      seen.add(c);
-      suggestions.push({ label: c, sub: "Country / region", value: c, type: "country" });
+    for (const w of KEYWORDS[d.slug] ?? []) {
+      if (w.length < 4 || !new RegExp(`(^|[^a-z])${w.replace(/ /g, "[\\s-]+")}($|[^a-z])`).test(allText)) continue;
+      add({ label: w.replace(/\b\w/g, (c) => c.toUpperCase()), sub: d.name, value: w.replace(/\b\w/g, (c) => c.toUpperCase()), type: "city" });
     }
+  }
+  for (const d of listed) {
+    for (const c of [...d.countries, d.region]) add({ label: c, sub: "Country / region", value: c, type: "country" });
   }
   res.json({
     destinations: DESTINATIONS.map(({ slug, name, region, countries, dtype, image, lat, lng, climate, meeting, flight_est }) =>
       ({ slug, name, region, countries, dtype, image, lat, lng, climate, meeting, flight_est })),
     operators: ops, suggestions, price_bounds: { min: se.STATE.pmin, max: se.STATE.pmax }, prices_fetched_at: fetchedAt(),
+    // the dates the search calendar offers: today to the last departure we hold
+    date_bounds: { first: se.today(), last: upcoming.reduce((m, i) => (i.start > m ? i.start : m), se.today()) },
   });
 });
 
 api.get("/home", async (_req, res) => {
-  const items = se.STATE.items.filter((i) => i.status !== "cancelled");
-  const by = new Map<string, { slug: string; destination: string; image: string | null; curated: boolean; dtype: string; country: string; lat: number; lng: number; min_price: number; count: number }>();
+  const items = se.upcoming().filter((i) => i.status !== "cancelled");
+  const by = new Map<string, { slug: string; destination: string; image: string | null; curated: boolean; dtype: string; country: string; lat: number; lng: number; climate: string[]; min_price: number; count: number }>();
   for (const i of items) {
     let b = by.get(i.dest_slug);
     if (!b) {
       // destination tiles use our own photo where we have one, otherwise the first trip's photo
       const own = DEST_BY_SLUG.get(i.dest_slug)?.image ?? null;
-      b = { slug: i.dest_slug, destination: i.destination, image: own ?? i.image, curated: own !== null, dtype: i.dtype, country: i.countries[0], lat: i.lat, lng: i.lng, min_price: 10 ** 9, count: 0 };
+      b = { slug: i.dest_slug, destination: i.destination, image: own ?? i.image, curated: own !== null, dtype: i.dtype, country: i.countries[0], lat: i.lat, lng: i.lng, climate: DEST_BY_SLUG.get(i.dest_slug)?.climate ?? [], min_price: 10 ** 9, count: 0 };
       by.set(i.dest_slug, b);
     }
     b.min_price = Math.min(b.min_price, i.true_price);
@@ -230,21 +264,39 @@ api.get("/trips/:trip_id", async (req, res) => {
   const reviews = await db.collection("reviews").find({ trip_id: tripId }, NOP).limit(50).toArray();
   const deps = se.itemsForTrip(tripId).map((i) => se.card(i));
   const similar = new Map<string, se.Card>();
-  for (const i of se.STATE.items) {
+  for (const i of se.upcoming()) {
     if (i.dest_slug === trip.destination_slug && i.trip_id !== tripId && i.status !== "cancelled") {
       const cur = similar.get(i.trip_id);
       if (!cur || i.true_price < cur.true_price) similar.set(i.trip_id, se.card(i));
     }
   }
-  res.json({ trip, operator: op, departures: deps, reviews, destination: DEST_BY_SLUG.get(trip.destination_slug) ?? null,
+  // the photo as a browser can load it (some operators give relative or doubled paths), as search shows it
+  res.json({ trip: { ...trip, image: imageUrl(trip.image, trip.url) || DEST_BY_SLUG.get(trip.destination_slug)?.image || null }, operator: op, departures: deps, reviews, destination: DEST_BY_SLUG.get(trip.destination_slug) ?? null, season: seasonInfo(trip.destination_slug),
+             visas: visasFor(trip.destination_slug), visas_checked: VISAS_CHECKED, facts: factsFor(trip.destination_slug),
              similar: [...similar.values()].slice(0, 4) });
+});
+
+// Entry rules for Indian passport holders, per country, with the destinations (and live departures) each one covers.
+api.get("/visas", (_req, res) => {
+  const live = new Map<string, number>();
+  for (const i of se.upcoming()) if (i.status !== "cancelled") live.set(i.dest_slug, (live.get(i.dest_slug) ?? 0) + 1);
+  const withTrips = (v: VisaInfo) => ({
+    ...v,
+    // a Schengen country's card also lists trips to the multi-country "Europe" destination, and the Schengen card itself
+    // lists trips to any of its members
+    destinations: Object.entries(DEST_COUNTRIES)
+      .filter(([, keys]) => keys.includes(v.key) || (v.group && keys.includes(v.key.split("-")[0])) || (v.members && keys.some((k) => k.startsWith(`${v.key}-`))))
+      .map(([slug]) => ({ slug, name: DEST_BY_SLUG.get(slug)?.name ?? slug, departures: live.get(slug) ?? 0 })),
+  });
+  // `groups` are the one-visa-many-countries cards (Schengen) that a trip covering several members links to
+  res.json({ checked: VISAS_CHECKED, countries: ALL_VISAS.map(withTrips), groups: VISAS.filter((v) => v.members).map(withTrips) });
 });
 
 // Every listed operator, with how many upcoming departures we hold for each (zero when their trips aren't imported).
 api.get("/operators", async (_req, res) => {
   const ops = await db.collection("operators").find({}, { projection: { _id: 0, leaders: 0, verification: 0, external_reviews: 0 } }).limit(1000).toArray();
   const stats = new Map<string, { departures: number; trips: Set<string>; from_price: number }>();
-  for (const i of se.STATE.items) {
+  for (const i of se.upcoming()) {
     if (i.status === "cancelled") continue;
     let s = stats.get(i.op.id);
     if (!s) stats.set(i.op.id, (s = { departures: 0, trips: new Set(), from_price: i.true_price }));
@@ -267,7 +319,7 @@ api.get("/operators/:op_id", async (req, res) => {
   if (!op) throw new HttpError(404, "Operator not found");
   const trips = await db.collection("trips").find({ operator_id: opId }, { projection: { _id: 0, id: 1 } }).limit(500).toArray();
   const tids: string[] = trips.map((t) => t.id);
-  const deps = se.STATE.items.filter((i) => tids.includes(i.trip_id)).map((i) => se.card(i)).sort((a, b) => cmpTuple([a.start], [b.start]));
+  const deps = se.upcoming().filter((i) => tids.includes(i.trip_id)).map((i) => se.card(i)).sort((a, b) => cmpTuple([a.start], [b.start]));
   const reviews = await db.collection("reviews").find({ trip_id: { $in: tids } }, NOP).limit(12).toArray();
   res.json({ operator: op, departures: deps, reviews, trip_count: tids.length });
 });
@@ -289,22 +341,31 @@ api.get("/departures", (req, res) => {
   res.json({ items: cardsFor(requiredQuery(queryParams(req), "ids").split(",").filter(Boolean)) });
 });
 
+// what people type into the site's forms: trimmed, and with a sensible length, so blanks and junk are turned away
+const textField = (min: number, max: number, what: string) =>
+  z.string().trim().min(min, min > 1 ? `${what} needs at least ${min} characters` : `Add ${what}`).max(max, `${what} is too long (max ${max} characters)`);
+const phoneField = z.string().trim().refine((p) => /^\+?[\d\s()-]{7,20}$/.test(p) && (p.match(/\d/g)?.length ?? 0) >= 7, "That phone number doesn't look right");
+const emailField = z.string().trim().max(200).refine((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e), "That email doesn't look right");
+const optionalEmail = z.union([z.literal(""), emailField]).nullable().default(null);
+
 const LeadIn = z.object({
-  dep_id: z.string(),
-  trip_id: z.string(),
-  name: z.string().min(2),
-  phone: z.string().min(7),
-  email: z.string().nullable().default(null),
-  party_size: int.default(1),
-  message: z.string().nullable().default(""),
-  kind: z.string().default("enquire"),
+  dep_id: z.string().max(200),
+  trip_id: z.string().max(200),
+  name: textField(2, 80, "Your name"),
+  phone: phoneField,
+  email: optionalEmail,
+  party_size: int.pipe(z.number().min(1, "At least 1 traveller").max(50)).default(1),
+  message: z.string().trim().max(2000, "Message is too long (max 2000 characters)").nullable().default(""),
+  kind: z.string().max(40).default("enquire"),
 });
 
-api.post("/leads", async (req, res) => {
+api.post("/leads", limit("leads", 20, HOUR), async (req, res) => {
   const lead = parseBody(LeadIn, req);
-  const doc: Record<string, unknown> = { ...lead, id: randomUUID(), created_at: nowIso() };
   const i = se.itemByDep(lead.dep_id);
-  if (i) Object.assign(doc, { trip_title: i.title, operator_id: i.op.id, operator_name: i.op.name, start: i.start });
+  // an enquiry is about a real departure of the trip it names
+  if (!i || i.trip_id !== lead.trip_id) throw new HttpError(404, "That departure doesn't exist");
+  const doc: Record<string, unknown> = { ...lead, id: randomUUID(), created_at: nowIso() };
+  Object.assign(doc, { trip_title: i.title, operator_id: i.op.id, operator_name: i.op.name, start: i.start });
   await db.collection("leads").insertOne({ ...doc });
   res.json({ ok: true, id: doc.id });
 });
@@ -316,24 +377,56 @@ const AlertIn = z.object({
   kinds: z.array(z.string()).default(["new_departures", "price_drops"]),
 });
 
-api.post("/alerts", async (req, res) => {
+// Saved searches belong to an account: an email typed into a box proves nothing, so listing or deleting someone's
+// alerts by their address alone isn't possible. The account's email is the one alerts go to.
+api.post("/alerts", limit("alerts", 60, HOUR), async (req, res) => {
+  const u = await currentUser(req);
   const a = parseBody(AlertIn, req);
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+/.test(a.email)) throw new HttpError(400, "Invalid email");
-  const doc = { ...a, id: randomUUID(), created_at: nowIso(), matches_now: se.count(a.filters) };
+  const doc = { ...a, email: u.email, user_id: u.id, id: randomUUID(), created_at: nowIso(), matches_now: se.count(a.filters) };
   await db.collection("saved_searches").insertOne({ ...doc });
   res.json(doc);
 });
 
 api.get("/alerts", async (req, res) => {
-  const email = requiredQuery(queryParams(req), "email");
-  const docs = await db.collection("saved_searches").find({ email }, NOP).sort({ created_at: -1 }).limit(100).toArray();
+  const u = await currentUser(req);
+  const docs = await db.collection("saved_searches").find({ user_id: u.id }, NOP).sort({ created_at: -1 }).limit(100).toArray();
   for (const d of docs) d.matches_now = se.count(d.filters ?? {});
   res.json({ items: docs });
 });
 
 api.delete("/alerts/:aid", async (req, res) => {
-  await db.collection("saved_searches").deleteOne({ id: req.params.aid });
+  const u = await currentUser(req);
+  const r = await db.collection("saved_searches").deleteOne({ id: req.params.aid, user_id: u.id });
+  if (!r.deletedCount) throw new HttpError(404, "Alert not found");
   res.json({ ok: true });
+});
+
+// ---------- analytics ----------
+// The browser sends these with navigator.sendBeacon, as plain text (that needs no CORS preflight, and it still goes
+// out when the visitor is leaving for the operator's site). Bots are ignored; nothing that identifies anyone is kept.
+const EventIn = z.object({
+  type: z.enum(analytics.EVENT_TYPES),
+  path: z.string().max(300).default(""),
+  ref: z.string().max(120).default(""),
+  props: z.record(z.string().max(40), z.union([z.string().max(300), z.number(), z.boolean(), z.null()])).default({}),
+});
+
+api.post("/events", limit("events", 1200, HOUR), express.text({ type: "*/*", limit: "8kb" }), async (req, res) => {
+  const ua = req.get("user-agent") ?? "";
+  if (analytics.isBot(ua)) { res.status(204).end(); return; }
+  let body: unknown = req.body;
+  if (typeof body === "string") {
+    try { body = JSON.parse(body); } catch { throw new HttpError(422, "Invalid event"); }
+  }
+  const r = EventIn.safeParse(body);
+  if (!r.success) throw new HttpError(422, "Invalid event");
+  const e = r.data;
+  if (Object.keys(e.props).length > 12) throw new HttpError(422, "Invalid event");
+  await db.collection("events").insertOne({
+    type: e.type, path: e.path.split("?")[0], ref: e.ref.replace(/^www\./, ""), props: e.props,
+    ts: new Date(), day: analytics.istDay(), visitor: await analytics.visitorId(db, req.ip ?? "", ua), device: analytics.deviceOf(ua),
+  });
+  res.status(204).end();
 });
 
 const ShortlistIn = z.object({
@@ -341,7 +434,7 @@ const ShortlistIn = z.object({
   name: z.string().default("Our trip shortlist"),
 });
 
-api.post("/shortlists", async (req, res) => {
+api.post("/shortlists", limit("shortlists", 60, HOUR), async (req, res) => {
   const s = parseBody(ShortlistIn, req);
   const sid = hex(10);
   await db.collection("shortlists").insertOne({ id: sid, name: s.name, dep_ids: s.dep_ids.slice(0, 20), votes: {}, created_at: nowIso() });
@@ -359,33 +452,43 @@ api.get("/shortlists/:sid", async (req, res) => {
 });
 
 const VoteIn = z.object({
-  dep_id: z.string(),
-  voter: z.string(),
+  dep_id: z.string().max(200),
+  voter: z.string().max(200),
   vote: z.string(),
 });
 
-api.post("/shortlists/:sid/vote", async (req, res) => {
+/**
+ * The name a vote is stored under, as the voter typed it (राहुल, "Priya S." and "Priya S" stay three people). Only
+ * what a database field name can't hold is swapped: "." for a look-alike dot, and a leading "$".
+ * The frontend (pages/Shortlist.jsx) works out the same key to show someone their own vote.
+ */
+const voterKey = (name: string) =>
+  name.normalize("NFC").trim().replace(/\s+/g, " ").slice(0, 30).replaceAll(".", "．").replace(/^\$/, "＄") || "anon";
+
+api.post("/shortlists/:sid/vote", limit("votes", 300, HOUR), async (req, res) => {
   const v = parseBody(VoteIn, req);
   if (!["up", "down", "none"].includes(v.vote)) throw new HttpError(400, "Invalid vote");
-  const key = `votes.${v.dep_id.replaceAll(".", "_")}.${v.voter.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 30) || "anon"}`;
+  if (!v.voter.trim()) throw new HttpError(422, "Add your name to vote");
+  const key = `votes.${v.dep_id.replaceAll(".", "_")}.${voterKey(v.voter)}`;
   const upd = v.vote === "none" ? { $unset: { [key]: "" } } : { $set: { [key]: v.vote } };
-  const r = await db.collection("shortlists").updateOne({ id: req.params.sid }, upd);
+  const sid = String(req.params.sid);
+  const r = await db.collection("shortlists").updateOne({ id: sid }, upd);
   if (!r.matchedCount) throw new HttpError(404, "Shortlist not found");
-  res.json(await getShortlist(req.params.sid));
+  res.json(await getShortlist(sid));
 });
 
 const SignupIn = z.object({
-  company: z.string(),
-  contact_name: z.string(),
-  email: z.string(),
-  phone: z.string(),
-  website: z.string().nullable().default(""),
-  category: z.string().default("community"),
-  departures_per_year: int.nullable().default(null),
-  message: z.string().nullable().default(""),
+  company: textField(2, 120, "Company name"),
+  contact_name: textField(2, 80, "Your name"),
+  email: emailField,
+  phone: phoneField,
+  website: z.string().trim().max(300, "Website is too long (max 300 characters)").nullable().default(""),
+  category: z.string().max(40).default("community"),
+  departures_per_year: int.pipe(z.number().min(0, "Departures a year can't be negative").max(10000)).nullable().default(null),
+  message: z.string().trim().max(2000, "Message is too long (max 2000 characters)").nullable().default(""),
 });
 
-api.post("/operator-signups", async (req, res) => {
+api.post("/operator-signups", limit("operator-signups", 20, HOUR), async (req, res) => {
   const s = parseBody(SignupIn, req);
   await db.collection("operator_signups").insertOne({ ...s, id: randomUUID(), created_at: nowIso() });
   res.json({ ok: true });
@@ -398,7 +501,7 @@ q: destination text (e.g. "Bali", "Spiti", "Japan"), only if a place is named.
 start, end: ISO dates. A month name means the whole of its next occurrence (first to last day).
 flex: "0" | "2" | "month" | "any".
 max_price, min_price: integers in INR ("30k" -> 30000, "1L" -> 100000).
-as: comma list from solo_woman,solo_man,friends,couple,parents,family,senior_solo,senior_group,corporate
+as: comma list from solo_woman,solo,friends,couple,senior
 gender: comma list from women_only,mixed
 dur: comma list from 2-5,6-9,10-14,15+ ("5-day" -> 2-5, "week" -> 6-9)
 style: comma list from hiking,offbeat,luxury,backpacking,culture_food,beaches,wildlife,spiritual,roadtrip,photography,party,workation,winter
@@ -412,7 +515,7 @@ const NL_KEYS = new Set(["q", "start", "end", "flex", "max_price", "min_price", 
 
 const NLIn = z.object({ text: z.string() });
 
-api.post("/nl-search", async (req, res) => {
+api.post("/nl-search", limit("nl-search", 60, HOUR), async (req, res) => {
   const body = parseBody(NLIn, req);
   let data: Record<string, unknown>;
   try {
@@ -427,8 +530,13 @@ api.post("/nl-search", async (req, res) => {
     const m = /\{.*\}/s.exec(raw);
     data = m ? JSON.parse(m[0]) : {};
   } catch (e) {
+    // the details (an API key problem, a request id) go to the server log only, never to the browser; the search
+    // engine's own reading of the sentence stands in, so the search still works without the AI
     console.error("NL parse failed", e);
-    throw new HttpError(502, `Could not parse request: ${e instanceof Error ? e.message : e}`);
+    const read = se.interpret(body.text.slice(0, 400));
+    if (!read) throw new HttpError(502, "Couldn't read that right now. Try the search filters instead.");
+    res.json({ params: read.params, summary: read.summary });
+    return;
   }
   const params: Record<string, string> = {};
   for (const [k, v] of Object.entries(data)) {
@@ -439,21 +547,135 @@ api.post("/nl-search", async (req, res) => {
   res.json({ params, summary: data.summary ?? "" });
 });
 
+// ---------- traveller accounts (optional) ----------
+// An account only keeps your shortlist (hearts) on the server, so it follows you to other devices. Nothing on the site
+// needs one. The browser sends the session token as "Authorization: Bearer <token>".
+type UserDoc = { id: string; name: string; email: string; pass: string; hearts: string[]; created_at: string };
+const userOut = (u: UserDoc) => ({ id: u.id, name: u.name, email: u.email, hearts: u.hearts ?? [] });
+
+async function startSession(userId: string) {
+  const token = acct.newToken();
+  await db.collection("sessions").insertOne({
+    token: acct.tokenHash(token), user_id: userId, created_at: nowIso(),
+    expires_at: new Date(Date.now() + acct.SESSION_DAYS * 86_400_000),
+  });
+  return token;
+}
+
+const bearer = (req: Request) => /^Bearer\s+(\S+)$/i.exec(req.get("authorization") ?? "")?.[1];
+
+async function currentUser(req: Request): Promise<UserDoc> {
+  const token = bearer(req);
+  const s = token && await db.collection("sessions").findOne({ token: acct.tokenHash(token) });
+  if (!s || s.expires_at < new Date()) throw new HttpError(401, "Not logged in");
+  const u = await db.collection<UserDoc>("users").findOne({ id: s.user_id }, NOP);
+  if (!u) throw new HttpError(401, "Not logged in");
+  return u;
+}
+
+const HEARTS = z.array(z.string().max(120)).max(200);
+const SignupUserIn = z.object({ name: z.string().trim().min(1, "Tell us your name").max(60), email: z.string(), password: z.string(), hearts: HEARTS.default([]) });
+const LoginUserIn = z.object({ email: z.string(), password: z.string(), hearts: HEARTS.default([]) });
+
+api.post("/auth/signup", limit("signup", 20, HOUR), async (req, res) => {
+  const b = parseBody(SignupUserIn, req);
+  const email = acct.cleanEmail(b.email);
+  if (!acct.looksLikeEmail(email)) throw new HttpError(422, "That email doesn't look right");
+  if (b.password.length < 8) throw new HttpError(422, "Use at least 8 characters for the password");
+  if (b.password.length > 200) throw new HttpError(422, "That password is too long");
+  if (await db.collection("users").findOne({ email })) throw new HttpError(409, "There's already an account with this email. Log in instead?");
+  const user: UserDoc = { id: randomUUID(), name: b.name, email, pass: await acct.hashPassword(b.password), hearts: [...new Set(b.hearts)], created_at: nowIso() };
+  try {
+    await db.collection("users").insertOne({ ...user });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) throw new HttpError(409, "There's already an account with this email. Log in instead?");
+    throw e;
+  }
+  res.json({ token: await startSession(user.id), user: userOut(user) });
+});
+
+// logging in adds the hearts saved on this device to the account's, so nothing picked before logging in is lost
+api.post("/auth/login", limit("login", 60, 15 * MINUTE), async (req, res) => {
+  const b = parseBody(LoginUserIn, req);
+  const email = acct.cleanEmail(b.email);
+  const key = `${req.ip}|${email}`;
+  if (acct.tooManyTries(key)) throw new HttpError(429, "Too many tries. Wait 15 minutes and try again.");
+  const u = await db.collection<UserDoc>("users").findOne({ email }, NOP);
+  const ok = u ? await acct.checkPassword(b.password, u.pass) : await acct.checkNobody(b.password);
+  if (!u || !ok) { acct.noteFail(key); throw new HttpError(401, "That email and password don't match"); }
+  acct.clearFails(key);
+  const hearts = [...new Set([...(u.hearts ?? []), ...b.hearts])].slice(0, 200);
+  if (hearts.length !== (u.hearts ?? []).length) await db.collection("users").updateOne({ id: u.id }, { $set: { hearts } });
+  res.json({ token: await startSession(u.id), user: userOut({ ...u, hearts }) });
+});
+
+api.get("/auth/me", async (req, res) => {
+  res.json({ user: userOut(await currentUser(req)) });
+});
+
+api.post("/auth/logout", async (req, res) => {
+  const token = bearer(req);
+  if (token) await db.collection("sessions").deleteOne({ token: acct.tokenHash(token) });
+  res.json({ ok: true });
+});
+
+api.put("/me/hearts", async (req, res) => {
+  const u = await currentUser(req);
+  const { hearts } = parseBody(z.object({ hearts: HEARTS }), req);
+  await db.collection("users").updateOne({ id: u.id }, { $set: { hearts: [...new Set(hearts)] } });
+  res.json({ ok: true });
+});
+
 // ---------- admin ----------
+// The admin page only works with a strong ADMIN_PASSWORD (12+ characters, not the old published default); without
+// one it stays switched off. Each login gets its own random key, kept in memory, that expires after 12 hours.
+const ADMIN_SESSION_MS = 12 * 60 * 60_000;
+const adminSessions = new Map<string, number>(); // key hash -> expiry
+
+function adminPasswordOk(): boolean {
+  const p = process.env.ADMIN_PASSWORD ?? "";
+  return p.length >= 12 && p !== "wayfind2026";
+}
+
+const sameText = (a: string, b: string) => {
+  const x = createHash("sha256").update(a).digest(), y = createHash("sha256").update(b).digest();
+  return timingSafeEqual(x, y);
+};
+
 function adminToken(): string {
-  return createHash("sha256").update(`${env("ADMIN_USERNAME")}:${env("ADMIN_PASSWORD")}:wayfind`).digest("hex");
+  const token = randomBytes(32).toString("hex");
+  adminSessions.set(createHash("sha256").update(token).digest("hex"), Date.now() + ADMIN_SESSION_MS);
+  return token;
 }
 
 function requireAdmin(req: Request) {
-  if (req.get("x-admin-token") !== adminToken()) throw new HttpError(401, "Unauthorized");
+  const token = req.get("x-admin-token") ?? "";
+  const key = createHash("sha256").update(token).digest("hex");
+  const until = adminSessions.get(key);
+  if (!token || !until || until < Date.now()) {
+    if (until) adminSessions.delete(key);
+    throw new HttpError(401, "Unauthorized");
+  }
 }
 
 const LoginIn = z.object({ username: z.string(), password: z.string() });
 
-api.post("/admin/login", (req, res) => {
+// guessing the admin password is slowed down: 10 wrong tries from one address, then a 15-minute wait
+api.post("/admin/login", limit("admin-login", 30, 15 * MINUTE), (req, res) => {
   const b = parseBody(LoginIn, req);
-  if (b.username !== env("ADMIN_USERNAME") || b.password !== env("ADMIN_PASSWORD")) throw new HttpError(401, "Invalid credentials");
+  const key = `admin|${req.ip}`;
+  if (acct.tooManyTries(key)) throw new HttpError(429, "Too many tries. Wait 15 minutes and try again.");
+  if (!adminPasswordOk()) throw new HttpError(503, "The admin page is switched off until a strong ADMIN_PASSWORD (12+ characters) is set on the server.");
+  if (!sameText(b.username, env("ADMIN_USERNAME")) || !sameText(b.password, env("ADMIN_PASSWORD"))) { acct.noteFail(key); throw new HttpError(401, "Invalid credentials"); }
+  acct.clearFails(key);
   res.json({ token: adminToken() });
+});
+
+// what visitors did on the site, for the admin page's Analytics tab (see analytics.ts)
+api.get("/admin/analytics", async (req, res) => {
+  requireAdmin(req);
+  const days = Math.min(Math.max(intQuery(queryParams(req), "days", 30), 1), 400);
+  res.json(await analytics.report(db, days));
 });
 
 api.get("/admin/overview", async (req, res) => {
@@ -614,6 +836,11 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   await seedIfNeeded();
+  await db.collection("users").createIndex({ email: 1 }, { unique: true });
+  await db.collection("sessions").createIndex({ token: 1 }, { unique: true });
+  await db.collection("sessions").createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+  await analytics.ensureIndexes(db);
+  if (!adminPasswordOk()) console.warn("ADMIN_PASSWORD is missing, too short or the old default: the admin page is switched off.");
   await reloadCache();
   scheduleRefresh();
   console.info(refresh.nextAt ? `Next trip refresh: ${refresh.nextAt} (every ${REFRESH_DAYS} days)` : "Scheduled trip refresh is off");

@@ -101,6 +101,13 @@ export interface Trip {
   climate_tags: string[];
   meeting_point: string;
   end_point: string;
+  /**
+   * The city the group travels out from, when the operator says so: "included" when their inclusions list the bus,
+   * train or flight from it (starts_from_line is that line), "title" when only the trip's name says "from Pune".
+   */
+  starts_from?: string | null;
+  starts_from_how?: "included" | "title" | null;
+  starts_from_line?: string | null;
   duration_days: number;
   categories: string[];
   audience_tags: string[];

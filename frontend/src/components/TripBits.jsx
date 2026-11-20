@@ -1,17 +1,23 @@
 import { Info, Check, X, CircleDashed, BadgeCheck, ShieldQuestion, Minus, Instagram, Star } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { inr, compact } from "@/lib/format";
+import { inr, compact, money } from "@/lib/format";
+import { useApp } from "@/context/AppState";
 
-// One checklist line: what the listing says about it, and any amount added on top of the listed price.
+// One checklist line: what the listing says about it, and any amount added on top of the listed price. The icon says
+// it in words too, for screen readers ("estimated" is an extra the operator charges on top, such as GST).
+const LINE_WORDS = { included: "Included", partial: "Partly included", unknown: "Not listed", not_included: "Not included", estimated: "Extra, on top of the price" };
 export function lineIcon(status, size = 14) {
-  if (status === "included") return <Check size={size} className="text-mint" />;
-  if (status === "partial") return <CircleDashed size={size} className="text-amber-500" />;
-  if (status === "unknown") return <Minus size={size} className="text-muted-foreground" />;
-  return <X size={size} className="text-coral" />;
+  const icon = status === "included" ? <Check size={size} className="text-mint" aria-hidden />
+    : status === "partial" ? <CircleDashed size={size} className="text-[#5f656b]" aria-hidden />
+    : status === "unknown" ? <Minus size={size} className="text-muted-foreground" aria-hidden />
+    : <X size={size} className="text-[#c9302a]" aria-hidden />;
+  return <span className="inline-flex shrink-0">{icon}<span className="sr-only">{LINE_WORDS[status] ?? status}: </span></span>;
 }
 export const lineNote = (l, fmt = inr) => (l.amount ? `+ ${fmt(l.amount)} est.` : l.status === "unknown" ? "check with operator" : l.status === "not_included" ? "not included" : "included");
 
 export function TruePricePopover({ card, testId }) {
+  const { currency } = useApp();
+  const inr = (n) => money(n, currency, true);
   const extra = card.true_price - card.price;
   const real = card.source === "import";
   return (
@@ -35,7 +41,7 @@ export function TruePricePopover({ card, testId }) {
                 {lineIcon(l.status)}
                 {l.label}
               </span>
-              <span className={`font-mono text-xs ${l.amount ? "" : "text-muted-foreground"}`}>{lineNote(l)}</span>
+              <span className={`font-mono text-xs ${l.amount ? "" : "text-muted-foreground"}`}>{lineNote(l, inr)}</span>
             </div>
           ))}
           <div className="perf my-2" />
@@ -92,7 +98,7 @@ export function RatingBadges({ ratings, plain, className = "" }) {
       className={`inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-coral ${className}`}>
       {r.source === "tripadvisor" && r.rating_image
         ? <img src={r.rating_image} alt={`${r.rating} of 5 bubbles`} className="h-3.5" />
-        : <><Star size={12} className="fill-amber text-amber" /><b className="font-semibold text-foreground">{r.rating.toFixed(1)}</b></>}
+        : <><Star size={12} className="fill-[#16181b] text-[#16181b]" /><b className="font-semibold text-foreground">{r.rating.toFixed(1)}</b></>}
       <span>({compact(r.count)})</span> <span>{RATING_SOURCES[r.source]}</span>
     </Tag>
   ));
@@ -104,7 +110,7 @@ export function AgeBar({ range, median }) {
   return (
     <div className="w-full" title={`Ages ${range[0]}–${range[1]}, median ${median}`}>
       <div className="relative h-1.5 rounded-full bg-muted">
-        <div className="absolute h-1.5 rounded-full bg-amber/80" style={{ left: pos(range[0]), width: `calc(${pos(range[1])} - ${pos(range[0])})` }} />
+        <div className="absolute h-1.5 rounded-full bg-[#16181b]/60" style={{ left: pos(range[0]), width: `calc(${pos(range[1])} - ${pos(range[0])})` }} />
         <div className="absolute -top-[3px] h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white bg-midnight dark:border-midnight dark:bg-sand" style={{ left: pos(median) }} />
       </div>
       <p className="mt-1 font-mono text-[10px] text-muted-foreground">ages {range[0]}–{range[1]} · med {median}</p>
@@ -118,14 +124,14 @@ export function GenderBar({ split }) {
   return (
     <div className="w-full" title={`${f}% women`}>
       <div className="flex h-1.5 overflow-hidden rounded-full bg-sky-300/70">
-        <div className="h-full bg-coral" style={{ width: `${f}%` }} />
+        <div className="h-full bg-[#16181b]/70" style={{ width: `${f}%` }} />
       </div>
       <p className="mt-1 font-mono text-[10px] text-muted-foreground">{f}% women · {100 - f}% men</p>
     </div>
   );
 }
 
-export function Donut({ value, size = 120, color = "#FF6B4A", label, sub }) {
+export function Donut({ value, size = 120, color = "#16181b", label, sub }) {
   const r = size / 2 - 10, c = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">

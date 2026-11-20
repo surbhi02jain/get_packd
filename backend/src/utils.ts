@@ -226,3 +226,26 @@ export function pyIso(d: Date): string {
 export function nowIso(): string {
   return pyIso(new Date());
 }
+
+/**
+ * A trip photo's address as a browser on getPackd can load it: made absolute against the operator's page it was read
+ * from (some sites give "/static/images/x.webp"), and with a folder pair a site repeats by mistake said once
+ * ("/static/images/static/images/x.webp" is Himalaya Shelter's own og:image, which serves their 404 page).
+ */
+export function imageUrl(src: string | null | undefined, page: string | null | undefined): string | null {
+  if (!src) return null;
+  let u: URL;
+  try {
+    u = new URL(src, page || undefined);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  // sites that refuse to show their images on other sites (Cross-Origin-Resource-Policy: same-origin); the
+  // destination's own photo is used instead of a broken image and a console error
+  if (NO_HOTLINK.has(u.hostname.replace(/^www\./, ""))) return null;
+  u.pathname = u.pathname.replace(/((?:\/[^/]+){2,3})\1(?=\/)/, "$1");
+  return u.href;
+}
+
+const NO_HOTLINK = new Set(["jugni.co.in"]);

@@ -4,7 +4,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { LABELS } from "@/lib/constants";
-import { short } from "@/lib/format";
+import { shortMoney, PRICE_STEPS, stepIndex } from "@/lib/format";
+import { useApp } from "@/context/AppState";
 
 // Only filters the imported trips carry data for. Age, pace, difficulty, stays, food, group size and trust
 // signals are not on operators' sites, so those filters would match nothing (or hide most trips).
@@ -50,7 +51,9 @@ function RangeSlider({ min, max, step, value, onCommit, fmt, testId }) {
   );
 }
 
-export default function FilterRail({ facets = {}, params, update, bounds }) {
+// `hide`: section titles a page shows elsewhere (Explore asks how many travellers in its search, not here)
+export default function FilterRail({ facets = {}, params, update, bounds, hide = [] }) {
+  const { currency } = useApp();
   const [opQ, setOpQ] = useState("");
   const [allCountries, setAllCountries] = useState(false);
   const toggle = (k, v) => {
@@ -83,6 +86,7 @@ export default function FilterRail({ facets = {}, params, update, bounds }) {
     </label>
   );
   const pMin = bounds?.min || 0, pMax = Math.ceil((bounds?.max || 400000) / 10000) * 10000;
+  const steps = [...PRICE_STEPS.filter((s) => s < pMax), pMax];
   const seats = +(params.seats || 0);
 
   const extras = {
@@ -93,11 +97,12 @@ export default function FilterRail({ facets = {}, params, update, bounds }) {
     ),
     price: (
       <div>
-        <RangeSlider testId="filter-price-slider" min={0} max={pMax} step={5000} value={[+(params.min_price || 0), +(params.max_price || pMax)]}
-          fmt={short} onCommit={([a, b]) => update({ min_price: a > 0 ? a : null, max_price: b < pMax ? b : null })} />
+        <RangeSlider testId="filter-price-slider" min={0} max={steps.length - 1} step={1}
+          value={[stepIndex(steps, +(params.min_price || 0)), stepIndex(steps, +(params.max_price || pMax))]}
+          fmt={(i) => shortMoney(steps[i], currency)} onCommit={([a, b]) => update({ min_price: steps[a] > 0 ? steps[a] : null, max_price: steps[b] < pMax ? steps[b] : null })} />
         <label className="mt-3 flex items-center justify-between px-1 text-sm">Show true price
           <Switch data-testid="filter-true-price-switch" checked={params.true_price !== "0"} onCheckedChange={(c) => update({ true_price: c ? null : "0" })} /></label>
-        <p className="px-1 pt-1 text-[11px] text-muted-foreground">Range from {short(pMin)}</p>
+        <p className="px-1 pt-1 text-[11px] text-muted-foreground">Range from {shortMoney(pMin, currency)}</p>
       </div>
     ),
     seats: (
@@ -124,7 +129,7 @@ export default function FilterRail({ facets = {}, params, update, bounds }) {
 
   return (
     <div data-testid="filter-rail">
-      {SECTIONS.map(([title, keys, extra, bools], idx) => (
+      {SECTIONS.filter(([title]) => !hide.includes(title)).map(([title, keys, extra, bools], idx) => (
         <Section key={title} title={title} defaultOpen={idx < 3 || keys.some((k) => params[k]) || (bools || []).some((k) => params[k])}>
           {keys.map((k) => <div key={k} className={k === "country" ? "mt-2 border-t pt-2" : ""}>{group(k)}</div>)}
           {(bools || []).map(boolRow)}

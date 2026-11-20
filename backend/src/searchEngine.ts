@@ -1,5 +1,7 @@
-import { addDays, cmpTuple, lookup, monthEnd, monthStart, parseISODate, pyInt, pyRound, pySum, weekday } from "./utils.js";
-import { DEST_BY_SLUG } from "./destinations.js";
+import { addDays, cmpTuple, imageUrl, lookup, monthEnd, monthStart, parseISODate, pyInt, pyRound, pySum, weekday } from "./utils.js";
+import { DEST_BY_SLUG, DESTINATIONS, matchDestination } from "./destinations.js";
+import { factsFor } from "./facts.js";
+import { seasonInfo, seasonOf } from "./seasons.js";
 import type { Departure, ExternalRating, GroupStats, Inclusions, Operator, Review, Trip } from "./types.js";
 
 const CHECKLIST: [string, string][] = [
@@ -15,7 +17,7 @@ const PER_DAY = new Set(["local_transport", "meals", "guide", "activities"]);
 const STAY_NIGHT: Record<string, number> = { hostel: 900, budget: 1800, comfort: 4000, luxury: 9500 };
 
 const AUDIENCE = ["solo", "friends", "couples", "parents", "family", "seniors_solo", "seniors_group", "corporate"];
-const PERSONAS = ["solo_woman", "solo_man", "friends", "couple", "parents", "family", "senior_solo", "senior_group", "corporate"];
+const PERSONAS = ["solo_woman", "solo", "friends", "couple", "senior"];
 const GENDERS = ["women_only", "mixed"];
 const AGE_BANDS = ["18-25", "25-35", "35-45", "45-60", "60+"];
 const CLIMATES = ["snow", "beach", "mountains", "desert", "jungle", "city"];
@@ -24,9 +26,8 @@ export const STYLES = ["hiking", "offbeat", "luxury", "backpacking", "culture_fo
                        "roadtrip", "photography", "party", "workation", "winter"];
 const OP_CATS = ["community", "trekking", "scuba", "women_specialist", "hostel", "aggregator", "legacy", "seniors", "luxury"];
 const PERSONA_LABEL: Record<string, string> = {
-  solo_woman: "Great for solo women", solo_man: "Great for solo men", friends: "Great for friend groups",
-  couple: "Couple-friendly", parents: "Easy on parents", family: "Family-friendly",
-  senior_solo: "Comfortable for 60+ solo", senior_group: "Ideal for 60+ groups", corporate: "Built for teams",
+  solo_woman: "Great for solo women", solo: "Great for solo travellers", friends: "Great for friend groups",
+  couple: "Couple-friendly", senior: "Comfortable for seniors",
 };
 const GROUP_LABEL: Record<string, string> = {
   audience: "audience", as: "travelling-as", gender: "group makeup", age: "age band", size: "group size",
@@ -37,6 +38,10 @@ const GROUP_LABEL: Record<string, string> = {
 };
 const QUIZ_KEYS = ["fq_age", "fq_pace", "fq_budget", "fq_style", "fq_size", "fq_stay"];
 const BIG = 10 ** 9;
+/** Prices are re-read every 3 days; older than this, the site says so next to the price. */
+export const STALE_DAYS = 7;
+// an operator that names a trip for seniors ("Seniors' Special", "Senior Citizens", "60+") is saying who it suits
+const SENIOR_TITLE = /\bseniors?\b|\bsenior citizens?\b|\b60\s*\+|\belderly\b/i;
 
 export interface BreakdownLine {
   key: string;
@@ -64,6 +69,9 @@ export interface Item {
   end: string;
   duration: number;
   meeting_point: string;
+  /** the city the group sets off from, when the operator says (see Trip.starts_from) */
+  starts_from: string | null;
+  starts_from_how: "included" | "title" | null;
   price: number;
   true_price: number;
   breakdown: BreakdownLine[];
@@ -86,6 +94,8 @@ export interface Item {
   pace: string | null;
   difficulty: string | null;
   stay_tier: string | null;
+  /** The start month against the destination's season: "Best season", or the off-season reason. */
+  season: { kind: "best" | "off"; label: string } | null;
   private_room: boolean;
   kid_friendly: boolean;
   senior_friendly: boolean;
@@ -102,10 +112,10 @@ export interface Item {
 }
 
 const CARD_KEYS = ["dep_id", "trip_id", "title", "destination", "dest_slug", "countries", "dtype", "image", "url", "source", "duration",
-                   "meeting_point", "price", "true_price", "breakdown", "flights_est", "seats_total", "seats_left",
+                   "meeting_point", "starts_from", "starts_from_how", "price", "true_price", "breakdown", "flights_est", "seats_total", "seats_left",
                    "status", "min_group", "max_group", "age_band", "age_median", "age_range", "gender_split",
                    "gender_policy", "solo_ratio", "booked", "categories", "rating", "review_count",
-                   "last_verified_days", "op", "women_leader", "stay_tier", "pace", "difficulty"] as const;
+                   "last_verified_days", "op", "women_leader", "stay_tier", "pace", "difficulty", "season"] as const;
 
 export type Card = Pick<Item, (typeof CARD_KEYS)[number]> & {
   start: string;
@@ -121,6 +131,10 @@ export type Params = Record<string, string>;
 interface Normalized {
   sel: Record<string, string[]>;
   q: string;
+  /** whether a departure matches `q`; null when there is no `q` */
+  qm: ((i: Item) => boolean) | null;
+  /** one destination by slug, exact (the free-text `q` also matches trips that only mention a place) */
+  dest: string;
   start: string | null;
   end: string | null;
   flex: string;
@@ -135,6 +149,25 @@ interface Normalized {
 }
 
 export const STATE: { items: Item[]; pmin: number; pmax: number } = { items: [], pmin: 0, pmax: 1 };
+
+/** Today's date (yyyy-mm-dd) in India, where the trips start. */
+export function today(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+}
+
+let upcomingCache: { day: string; from: Item[]; items: Item[] } | null = null;
+
+/**
+ * The departures that haven't left yet: everything that lists or counts departures goes through this, not STATE.items.
+ * Trip data is only read every so often, so the cut-off is today's date at the time of the request.
+ */
+export function upcoming(): Item[] {
+  const day = today();
+  if (upcomingCache?.day !== day || upcomingCache.from !== STATE.items) {
+    upcomingCache = { day, from: STATE.items, items: STATE.items.filter((i) => i.start >= day) };
+  }
+  return upcomingCache.items;
+}
 
 /**
  * Imported trips: only what the operator states. Each checklist item is "included", "not_included" or "unknown",
@@ -197,15 +230,14 @@ function personaMatch(i: Item, p: string): boolean {
   const a = i.audience;
   const g = i.gender_policy;
   switch (p) {
-    case "solo_woman": return a.includes("solo") && ["women_only", "mostly_women", "mixed"].includes(g);
-    case "solo_man": return a.includes("solo") && ["mixed", "mostly_men", "men_only"].includes(g);
+    // a woman travelling alone, from an old link or the plain-words search: women-only groups, as the search's switch gives
+    case "solo_woman": return g === "women_only";
+    // anyone travelling alone: solo-friendly trips with a mixed group
+    case "solo": return a.includes("solo") && ["mixed", "mostly_women", "mostly_men"].includes(g);
     case "friends": return a.includes("friends");
     case "couple": return a.includes("couples") && !["women_only", "men_only"].includes(g);
-    case "parents": return a.includes("parents");
-    case "family": return a.includes("family") || i.kid_friendly;
-    case "senior_solo": return a.includes("seniors_solo");
-    case "senior_group": return a.includes("seniors_group");
-    case "corporate": return a.includes("corporate");
+    // seniors travelling alone or together, and trips suited to taking parents along
+    case "senior": return a.includes("seniors_solo") || a.includes("seniors_group") || a.includes("parents") || i.senior_friendly;
     default: return false;
   }
 }
@@ -277,6 +309,9 @@ export function build(operators: Operator[], trips: Trip[], departures: Departur
     const end = parseISODate(d.end_date);
     const lv = new Date(d.last_verified_at).getTime();
     if (!start || !end || Number.isNaN(lv)) throw new Error(`Departure ${d.id} has an invalid date`);
+    // how long this departure really runs, from its dates; an operator's "3 days" often leaves out the overnight bus,
+    // and the days off someone needs are what the dates say
+    const spanDays = Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1;
     const ratings = rv.get(t.id) ?? (o.rating !== null ? [o.rating] : []);
     const intl = t.domestic_or_international === "international";
     items.push({
@@ -284,16 +319,19 @@ export function build(operators: Operator[], trips: Trip[], departures: Departur
       destination: dest?.name ?? (t.destinations.length ? t.destinations[0] : ""),
       region: dest?.region ?? "", countries: t.country, dtype: t.domestic_or_international,
       climate: t.climate_tags, lat: dest?.lat ?? 0, lng: dest?.lng ?? 0,
-      image: t.image || dest?.image || null, url: t.url ?? null, source: t.source ?? null, start, end, duration: t.duration_days, meeting_point: t.meeting_point,
+      // trips imported before imageUrl existed are repaired here too, without a fresh import
+      image: imageUrl(t.image, t.url) || dest?.image || null, url: t.url ?? null, source: t.source ?? null, start, end, duration: spanDays > 0 ? spanDays : t.duration_days, meeting_point: t.meeting_point,
+      starts_from: t.starts_from ?? null, starts_from_how: t.starts_from_how ?? null,
       price: d.price_inr, true_price: tp, breakdown: lines,
       flights_est: !intl || t.source === "import" || lookup(t.inclusions, "flights_included", false) ? 0 : (dest?.flight_est ?? 0),
-      seats_total: d.seats_total, seats_left: d.seats_left, status: d.status,
+      // "Filling fast" is only said of seats read recently; an operator's site we couldn't read for a week isn't news
+      seats_total: d.seats_total, seats_left: d.seats_left, status: d.status === "filling" && now - lv > STALE_DAYS * 86_400_000 ? "open" : d.status,
       min_group: t.min_group, max_group: t.max_group, age_band: t.age_band,
       age_median: s.age_median, age_range: s.age_range, gender_split: s.gender_split,
       gender_policy: t.gender_policy, solo_ratio: s.solo_ratio, booked: s.booked_count,
       categories: t.categories, audience: t.audience_tags, pace: t.pace, difficulty: t.difficulty,
-      stay_tier: t.stay_tier, private_room: t.private_room ?? false, kid_friendly: t.kid_friendly,
-      senior_friendly: t.senior_friendly, medical_support: t.medical_support,
+      stay_tier: t.stay_tier, season: seasonOf(t.destination_slug, start), private_room: t.private_room ?? false, kid_friendly: t.kid_friendly,
+      senior_friendly: t.senior_friendly || SENIOR_TITLE.test(t.title), medical_support: t.medical_support,
       women_leader: t.women_leader ?? false, visa_easy: t.visa_easy ?? !t.visa_required,
       diet: t.diet_options, inclusions: t.inclusions,
       rating: ratings.length ? pyRound(pySum(ratings) / ratings.length, 1) : null, review_count: t.review_count ?? ratings.length,
@@ -303,9 +341,11 @@ export function build(operators: Operator[], trips: Trip[], departures: Departur
         instagram: o.instagram || null, instagram_followers: o.instagram_followers ?? null,
         instagram_followers_at: o.instagram_followers_at ?? null, instagram_followers_source: o.instagram_followers_source ?? null,
         ratings: o.external_ratings ?? [],
-        initials: o.name.replaceAll("&", "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(),
+        // "Treks and Trails" is TT, "The Flapper Life" FL: the small words are skipped (the trip page works it out the same way)
+        initials: o.name.replaceAll("&", " ").split(/\s+/).filter((w) => w && !/^(and|the|of)$/i.test(w)).slice(0, 2).map((w) => w[0]).join("").toUpperCase(),
       },
-      text: [t.title, dest?.name ?? "", dest?.region ?? "", t.country.join(" "), t.destinations.join(" ")].join(" ").toLowerCase(),
+      // where it starts is searchable too: "Rishikesh" finds the treks that begin there
+      text: [t.title, dest?.name ?? "", dest?.region ?? "", t.country.join(" "), t.destinations.join(" "), t.meeting_point ?? ""].join(" ").toLowerCase(),
     });
   }
   STATE.items = items;
@@ -326,6 +366,39 @@ function intParam(params: Params, k: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// words that name no place and no preference, left out when matching a search to trips
+const STOP_WORDS = new Set(["trip", "trips", "tour", "tours", "group", "groups", "to", "in", "for", "the", "a", "an", "of", "and",
+  "with", "on", "at", "my", "me", "i", "we", "our", "want", "looking", "some", "any", "package", "packages", "travel",
+  "holiday", "holidays", "vacation", "plan", "near", "around", "&"]);
+
+const qTokens = (q: string) => q.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((t) => t && !STOP_WORDS.has(t));
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// a word that starts with what was typed: "gokarn" finds Gokarna, "goa" doesn't find "goal"
+const wordStart = (t: string) => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(t)}`, "u");
+
+/**
+ * The destinations a search names outright, by their name, region or country. "Bali" is the island in Indonesia, not
+ * every trip with Bali in its title (Bali Pass is a trek in Uttarakhand); "Himachal" also takes in Spiti.
+ */
+function namedPlaces(q: string): Set<string> {
+  const out = new Set<string>();
+  for (const d of DESTINATIONS) {
+    const name = d.name.toLowerCase(), region = d.region.toLowerCase();
+    if (name === q || region === q || region.startsWith(`${q} `) || d.countries.some((c) => c.toLowerCase() === q)) out.add(d.slug);
+  }
+  return out;
+}
+
+function qMatcher(q: string): ((i: Item) => boolean) | null {
+  if (!q) return null;
+  const named = namedPlaces(q);
+  if (named.size) return (i) => named.has(i.dest_slug) || i.countries.some((c) => c.toLowerCase() === q);
+  // otherwise every word has to appear: "kasol kheerganga" is the trips that go to both
+  const res = qTokens(q).map(wordStart);
+  if (!res.length) return null;
+  return (i) => res.every((re) => re.test(i.text));
+}
+
 function normalize(params: Params): Normalized {
   const get = (k: string) => lookup(params, k, "");
   let q = get("q").trim().toLowerCase();
@@ -336,6 +409,8 @@ function normalize(params: Params): Normalized {
   return {
     sel: Object.fromEntries(Object.keys(FACETS).map((k) => [k, listParam(params, k)])),
     q,
+    qm: qMatcher(q),
+    dest: get("dest"),
     start,
     end: parseISODate(get("end")) ?? start,
     flex: get("flex") || "0",
@@ -354,20 +429,28 @@ function flexDays(flex: string): number {
   return /^\d+$/.test(flex) ? Number(flex) : 0;
 }
 
-function dateWindow(p: Normalized): [string, string] | null {
+/**
+ * The dates a departure has to fall in. A range someone picked (24–28 Dec) means the trip has to fit inside it, back
+ * by the last day, as that's their leave; a single day, or a whole month, means leaving on it or in it.
+ */
+type DateWindow = { from: string; to: string; fit: boolean };
+
+function dateWindow(p: Normalized): DateWindow | null {
   if (!p.start || p.flex === "any") return null;
   if (p.flex === "month") {
     const s = monthStart(p.start);
     let e = monthEnd(s);
     if (p.end && p.end > e) e = p.end;
-    return [s, e];
+    return { from: s, to: e, fit: false };
   }
   const f = flexDays(p.flex);
-  return [addDays(p.start, -f), addDays(p.end ?? p.start, f)];
+  const end = p.end ?? p.start;
+  return { from: addDays(p.start, -f), to: addDays(end, f), fit: end > p.start };
 }
 
 function base(i: Item, p: Normalized): boolean {
-  if (p.q && !i.text.includes(p.q)) return false;
+  if (p.qm && !p.qm(i)) return false;
+  if (p.dest && i.dest_slug !== p.dest) return false;
   const pr = p.use_true ? i.true_price : i.price;
   if (p.min_price !== null && pr < p.min_price) return false;
   if (p.max_price !== null && pr > p.max_price) return false;
@@ -377,8 +460,10 @@ function base(i: Item, p: Normalized): boolean {
   return true;
 }
 
-function inWindow(i: Item, w: [string, string] | null): boolean {
-  return w === null || (w[0] <= i.start && i.start <= w[1]);
+function inWindow(i: Item, w: DateWindow | null): boolean {
+  if (w === null) return true;
+  if (i.start < w.from || i.start > w.to) return false;
+  return !w.fit || i.end <= w.to;
 }
 
 function passes(i: Item, key: string, vals: string[]): boolean {
@@ -393,7 +478,7 @@ function activeFacets(p: Normalized): [string, string[]][] {
 function filter(p: Normalized): Item[] {
   const w = dateWindow(p);
   const active = activeFacets(p);
-  return STATE.items.filter((i) => base(i, p) && inWindow(i, w) && active.every(([k, v]) => passes(i, k, v)));
+  return upcoming().filter((i) => base(i, p) && inWindow(i, w) && active.every(([k, v]) => passes(i, k, v)));
 }
 
 export function fitScore(i: Item, personas: string[], quiz: Record<string, string>): [number | null, string | null] {
@@ -407,23 +492,15 @@ export function fitScore(i: Item, personas: string[], quiz: Record<string, strin
     const sr = i.solo_ratio ?? 0;
     if (pz === "solo_woman") {
       s += lookup({ women_only: 30, mostly_women: 22, mixed: 8 }, g, 0) + sr * 12 + (i.women_leader ? 6 : 0);
-    } else if (pz === "solo_man") {
-      s += lookup({ men_only: 22, mostly_men: 20, mixed: 16 }, g, 0) + sr * 14;
+    } else if (pz === "solo") {
+      s += lookup({ mixed: 18, mostly_women: 12, mostly_men: 12 }, g, 0) + sr * 14;
     } else if (pz === "couple") {
       s += (i.private_room ? 22 : 0) + (g === "mixed" ? 10 : 0) + (i.pace !== "adventurous" ? 8 : 0);
     } else if (pz === "friends") {
       s += (size(i) !== "small" ? 15 : 6) + (i.age_band !== null && ["18-25", "25-35"].includes(i.age_band) ? 12 : 4)
         + (i.categories.includes("party") || i.categories.includes("backpacking") ? 8 : 0);
-    } else if (pz === "parents") {
-      s += (i.senior_friendly ? 16 : 0) + (i.pace === "slow" ? 14 : 4) + (i.difficulty === "easy" ? 10 : 0);
-    } else if (pz === "family") {
-      s += (i.kid_friendly ? 28 : 0) + (i.difficulty === "easy" ? 10 : 0);
-    } else if (pz === "senior_solo") {
-      s += (i.senior_friendly ? 15 : 0) + (i.medical_support ? 14 : 0) + sr * 10;
-    } else if (pz === "senior_group") {
-      s += (i.senior_friendly ? 18 : 0) + (i.medical_support ? 12 : 0) + (i.pace === "slow" ? 10 : 0);
-    } else if (pz === "corporate") {
-      s += (size(i) === "large" ? 20 : 8) + (i.duration <= 5 ? 15 : 4);
+    } else if (pz === "senior") {
+      s += (i.senior_friendly ? 18 : 0) + (i.medical_support ? 12 : 0) + (i.pace === "slow" ? 10 : 0) + (i.difficulty === "easy" ? 6 : 0);
     }
     if (hasQuiz) {
       if (quiz.fq_age && i.age_range) {
@@ -474,6 +551,7 @@ function sortKey(sort: string, useTrue: boolean): (x: Scored) => (number | strin
     const pr = useTrue ? i.true_price : i.price;
     switch (sort) {
       case "cheapest": return [c, pr];
+      case "priciest": return [c, -pr];
       case "soonest": return [c, i.start, pr];
       case "shortest": return [c, i.duration, pr];
       case "rated": return [c, -(i.rating ?? 0), -i.review_count];
@@ -483,12 +561,191 @@ function sortKey(sort: string, useTrue: boolean): (x: Scored) => (number | strin
   };
 }
 
+// ---------- when a search finds nothing: a misspelt place, or a sentence ----------
+
+let vocab: { from: Item[]; words: string[] } | null = null;
+/** Every word (4+ letters) the upcoming departures can be found by. */
+function vocabulary(): string[] {
+  const items = upcoming();
+  if (vocab?.from !== items) {
+    const s = new Set<string>();
+    for (const i of items) for (const w of i.text.split(/[^\p{L}]+/u)) if (w.length >= 4) s.add(w);
+    vocab = { from: items, words: [...s] };
+  }
+  return vocab.words;
+}
+
+function editDistance(a: string, b: string, cap: number): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let low = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      low = Math.min(low, cur[j]);
+    }
+    if (low > cap) return cap + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** "kedarkanta" → "kedarkantha": each word no trip has, swapped for the closest one that does (1–2 letters off). */
+function correctSpelling(q: string): string | null {
+  const words = vocabulary();
+  let changed = false;
+  const fixed = qTokens(q).map((t) => {
+    if (t.length < 5 || words.some((w) => w.startsWith(t))) return t;
+    const cap = t.length >= 8 ? 2 : 1;
+    let best: string | null = null;
+    let bd = cap + 1;
+    for (const w of words) {
+      if (Math.abs(w.length - t.length) > cap) continue;
+      const dist = editDistance(t, w, bd - 1);
+      if (dist < bd) { bd = dist; best = w; }
+    }
+    if (!best) return t;
+    changed = true;
+    return best;
+  });
+  return changed ? fixed.join(" ") : null;
+}
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const STYLE_WORDS: [RegExp, string, string][] = [
+  [/\bbeach(es)?\b|\bislands?\b/, "beaches", "beach"],
+  [/\btreks?\b|\btrekking\b|\bhik(e|es|ing)\b/, "hiking", "trek"],
+  [/\bsnow\b|\bski(ing)?\b/, "winter", "snow"],
+  [/\bbackpack(ing|er|ers)?\b/, "backpacking", "backpacking"],
+  [/\bwildlife\b|\bsafaris?\b/, "wildlife", "wildlife"],
+  [/\bspiritual\b|\byoga\b|\bpilgrimage\b/, "spiritual", "spiritual"],
+  [/\broad ?trips?\b|\bbik(e|es|ing)\b/, "roadtrip", "road trip"],
+  [/\bparty\b|\bfestivals?\b/, "party", "party"],
+  [/\boffbeat\b|\bunexplored\b/, "offbeat", "offbeat"],
+];
+// long weekends whose dates move each year, as [name, first day, last day]; fixed-date ones are worked out below
+const MOVING_HOLIDAYS: [RegExp, string, string, string][] = [
+  [/\bholi\b/, "Holi", "2027-03-19", "2027-03-22"],
+  [/\bgood friday\b|\beaster\b/, "Good Friday", "2027-03-26", "2027-03-28"],
+];
+
+/** The next time a day of the year comes round (month 0-based), as yyyy-mm-dd, given today. */
+function nextOn(month: number, day: number, from: string): string {
+  const y = Number(from.slice(0, 4));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const thisYear = `${y}-${pad(month + 1)}-${pad(day)}`;
+  return thisYear >= from ? thisYear : `${y + 1}-${pad(month + 1)}-${pad(day)}`;
+}
+
+/**
+ * A search typed as a sentence ("beach trip for New Year", "5 days abroad under 60k in December"), read into the
+ * filters it names. Only what is clearly there is used; null when nothing is.
+ */
+export function interpret(text: string): { params: Params; summary: string } | null {
+  let s = ` ${text.toLowerCase().replace(/[₹,]/g, " ").replace(/\s+/g, " ")} `;
+  const params: Params = {};
+  const said: string[] = [];
+  const now = today();
+  const take = (re: RegExp) => { s = s.replace(re, " "); };
+
+  // the city someone leaves from isn't a filter the trips support; drop it so it isn't read as the destination
+  take(/\bfrom (mumbai|delhi|bangalore|bengaluru|pune|hyderabad|chennai|kolkata|ahmedabad|gurgaon|gurugram|noida)\b/g);
+
+  const price = /\b(?:under|below|less than|within|upto|up to|max|budget(?: of)?|<)\s*(?:rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(k|l|lakh|lakhs|lac|thousand)?\b/.exec(s);
+  if (price) {
+    const unit = price[2] ?? "";
+    const n = Number(price[1]) * (unit === "k" || unit === "thousand" ? 1000 : unit.startsWith("l") ? 100000 : 1);
+    if (n >= 1000) { params.max_price = String(Math.round(n)); said.push(`under ₹${Math.round(n).toLocaleString("en-IN")}`); }
+    take(new RegExp(escapeRe(price[0])));
+  }
+
+  const days = /\b(\d{1,2})\s*-?\s*(days?|d|nights?|n)\b/.exec(s);
+  if (days) {
+    const n = Number(days[1]) + (days[2].startsWith("n") ? 1 : 0);
+    params.dur = n <= 5 ? "2-5" : n <= 9 ? "6-9" : n <= 14 ? "10-14" : "15+";
+    said.push(`${n} days`);
+    take(new RegExp(escapeRe(days[0])));
+  } else if (/\bweekend\b/.test(s)) {
+    params.dur = "2-5"; said.push("a weekend"); take(/\b(long )?weekend\b/g);
+  } else if (/\ba week\b|\bone week\b/.test(s)) {
+    params.dur = "6-9"; said.push("a week"); take(/\b(a|one) week\b/g);
+  }
+
+  if (/\b(international|abroad|overseas|foreign)\b/.test(s)) { params.dtype = "international"; said.push("abroad"); take(/\b(international|abroad|overseas|foreign)\b/g); }
+  else if (/\b(domestic|within india|in india)\b/.test(s)) { params.dtype = "domestic"; said.push("in India"); take(/\b(domestic|within india|in india)\b/g); }
+
+  if (/\b(women|woman|girls|ladies|female)\b/.test(s)) { params.gender = "women_only"; said.push("women-only"); take(/\b(women|woman|girls|ladies|female)(-| )?(only)?\b/g); }
+
+  const styles: string[] = [];
+  for (const [re, style, word] of STYLE_WORDS) if (re.test(s)) { styles.push(style); said.unshift(`${word} trips`); s = s.replace(new RegExp(re.source, "g"), " "); }
+  if (styles.length) params.style = styles.join(",");
+
+  // when: a holiday, or a month
+  let when: [string, string, string, string] | null = null; // start, end, flex, label
+  if (/\bnew ?year'?s?( eve)?\b|\bnye\b/.test(s)) {
+    const st = nextOn(11, 28, now);
+    when = [st, addDays(st, 6), "2", "around New Year"]; take(/\bnew ?year'?s?( eve)?\b|\bnye\b/g);
+  } else if (/\b(christmas|xmas)\b/.test(s)) {
+    const st = nextOn(11, 22, now);
+    when = [st, addDays(st, 6), "2", "around Christmas"]; take(/\b(christmas|xmas)\b/g);
+  } else if (/\brepublic day\b/.test(s)) {
+    const st = nextOn(0, 23, now);
+    when = [st, addDays(st, 3), "2", "the Republic Day weekend"]; take(/\brepublic day\b/g);
+  } else {
+    const hol = MOVING_HOLIDAYS.find(([re, , , last]) => re.test(s) && last >= now);
+    if (hol) { when = [hol[2], hol[3], "2", `the ${hol[1]} weekend`]; take(hol[0]); }
+    else {
+      const m = MONTHS.findIndex((name) => new RegExp(`\\b(${name}|${name.slice(0, 3)})\\b`).test(s));
+      if (m >= 0) {
+        const st = nextOn(m, 1, monthStart(now));
+        when = [st, monthEnd(st), "month", `in ${MONTHS[m][0].toUpperCase()}${MONTHS[m].slice(1)}`];
+        take(new RegExp(`\\b(${MONTHS[m]}|${MONTHS[m].slice(0, 3)})\\b`, "g"));
+      }
+    }
+  }
+  if (when) { [params.start, params.end, params.flex] = when; said.push(when[3]); }
+
+  // whatever place is left
+  const dest = matchDestination(s);
+  if (dest) { params.q = dest.name; said.splice(styles.length, 0, `to ${dest.name}`); }
+
+  if (!Object.keys(params).length) return null;
+  const summary = said.join(" · ");
+  return { params, summary: summary[0].toUpperCase() + summary.slice(1) };
+}
+
+/**
+ * A search, with two second tries when it finds nothing: the place spelt the way the trips spell it ("Showing
+ * kedarkantha"), then a typed sentence read as filters. Each says what it changed, so the page can show it.
+ */
 export function search(params: Params, offset = 0, limit = 30) {
+  const out = runSearch(params, offset, limit);
+  const q = normalize(params).q;
+  if (out.total_departures > 0 || !q) return out;
+  // only when the words themselves find nothing: if "Kasol" has trips but none on your dates or budget, that's for
+  // the usual "widen the dates" suggestions, not a reason to swap Kasol for something else
+  if (count({ q: params.q }) > 0) return out;
+  const fixed = correctSpelling(q);
+  if (fixed && fixed !== q) {
+    const again = runSearch({ ...params, q: fixed }, offset, limit);
+    if (again.total_departures > 0) return { ...again, corrected_q: fixed };
+  }
+  const read = interpret(q);
+  if (read) {
+    const np: Params = { ...params, ...read.params };
+    if (!read.params.q) delete np.q;
+    const again = runSearch(np, offset, limit);
+    if (again.total_departures > 0) return { ...again, interpreted: read };
+  }
+  return out;
+}
+
+function runSearch(params: Params, offset = 0, limit = 30) {
   const p = normalize(params);
   const w = dateWindow(p);
   const active = activeFacets(p);
   const rows: [item: Item, fails: string[], inDates: boolean][] = [];
-  for (const i of STATE.items) {
+  for (const i of upcoming()) {
     if (!base(i, p)) continue;
     rows.push([i, active.filter(([k, v]) => !passes(i, k, v)).map(([k]) => k), inWindow(i, w)]);
   }
@@ -610,6 +867,10 @@ export function search(params: Params, offset = 0, limit = 30) {
     total_operators: new Set(results.map((i) => i.op.id)).size,
     headline, clusters: order.slice(offset, offset + limit), has_more: offset + limit < order.length,
     facets,
+    // a search for one place gets its season, shown on the price strip
+    season: (() => { const dest = p.q ? matchDestination(p.q) : null; const s = seasonInfo(dest?.slug); return dest && s ? { destination: dest.name, ...s } : null; })(),
+    // a search for one exact destination (Spin the globe) also gets its "Did you know?" facts
+    facts: factsFor(p.dest || null),
     price_strip: {
       weeks: byKey(weeks).map(([k, v]) => ({ week: k, min_price: v[0], count: v[1] })),
       months: byKey(months).map(([k, v]) => ({ month: k, min_price: v[0], count: v[1] })),
@@ -656,9 +917,10 @@ function relaxations(params: Params, p: Normalized, n: number) {
 }
 
 export function itemsForTrip(tripId: string): Item[] {
-  return STATE.items.filter((i) => i.trip_id === tripId).sort((a, b) => cmpTuple([a.start], [b.start]));
+  return upcoming().filter((i) => i.trip_id === tripId).sort((a, b) => cmpTuple([a.start], [b.start]));
 }
 
+/** Any departure, past ones included, so a saved or shared link to one still opens. */
 export function itemByDep(depId: string): Item | undefined {
   return STATE.items.find((i) => i.dep_id === depId);
 }

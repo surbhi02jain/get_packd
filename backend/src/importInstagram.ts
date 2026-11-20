@@ -83,7 +83,8 @@ export async function runInstagramImport(log: (line: string) => void = () => {})
   const accounts: Record<string, InstagramAccount> = {};
   const failed: { operator_id: string; handle: string; reason: string }[] = [];
   for (const op of operators) {
-    const handle = op.instagram.replace(/^@/, "").trim();
+    // Instagram usernames are lowercase; the API finds no account for "Trekkaro" but does for "trekkaro"
+    const handle = op.instagram.replace(/^@/, "").trim().toLowerCase();
     if (!handle) continue;
     try {
       const fig = source === "instagram-api" ? await fromApi(handle, userId!, token!) : await fromQoruz(handle);

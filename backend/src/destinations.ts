@@ -76,7 +76,7 @@ export const DESTINATIONS: Destination[] = [
 export const DEST_BY_SLUG = new Map(DESTINATIONS.map((d) => [d.slug, d]));
 
 // Place names that identify each destination in a trip title, location or URL.
-const KEYWORDS: Record<string, string[]> = {
+export const KEYWORDS: Record<string, string[]> = {
   kashmir: ["kashmir", "srinagar", "gulmarg", "pahalgam", "sonamarg", "gurez", "great lakes", "tarsar"],
   spiti: ["spiti", "kaza", "chandratal", "kinnaur", "chitkul", "kalpa"],
   ladakh: ["ladakh", "leh", "nubra", "pangong", "zanskar", "chadar", "hanle", "umling", "markha"],

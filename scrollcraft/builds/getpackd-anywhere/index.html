@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>getPackd · every group departure, side by side</title>
+<meta name="description" content="Group trips from 34 Indian operators, with real dates and prices, compared on one page.">
+<meta name="theme-color" content="#0A0C0F">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..700;1,100..125,400..700&family=Geist:wght@400..600&display=swap">
+<link rel="preload" as="image" href="assets/places/ladakh.jpg">
+<link rel="stylesheet" href="scrollcraft.css">
+<style>
+  :root {
+    --sc-canvas:     #0A0C0F;
+    --sc-surface:    #13161B;
+    --sc-ink:        #ECEEEA;
+    --sc-ink-soft:   #A0A8B1;
+    --sc-accent:     #FF6B4A;
+    --sc-accent-ink: #1A0D08;
+    --sc-font-display: "Archivo", system-ui, sans-serif;
+    --sc-font-text:    "Geist", system-ui, sans-serif;
+    --sc-shadow-color: 216 40% 3%;
+    --bar-h: 4.5rem;
+    --ground-2: #0E1115;
+    --ground-5: #0C0E12;
+    --ground-7: #0F1216;
+    --panel: #161A20;
+  }
+
+  .sc-display { font-stretch: 106%; font-weight: 560; }
+  .num { font-variant-numeric: tabular-nums; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ico { width: 1.15rem; height: 1.15rem; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- the hero's photographs: one fixed WebGL layer, depth-warped */
+  #scene, .scene-fallback { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100lvh; pointer-events: none; z-index: 0; }
+  .scene-fallback { display: none; }
+  .scene-fallback img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; opacity: 0; transition: opacity 1.2s var(--sc-ease-out); }
+  .scene-fallback img.on { opacity: 1; }
+  .no-gl #scene { display: none; }
+  .no-gl .scene-fallback { display: block; }
+  main { position: relative; z-index: 2; }
+
+  /* ---------- the bar */
+  .bar {
+    position: fixed; inset: 0 0 auto 0; z-index: var(--sc-z-chrome);
+    height: var(--bar-h); padding-inline: var(--sc-gutter);
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sc-4);
+    pointer-events: none;
+  }
+  .bar > * { pointer-events: auto; }
+  .bar::before { content: ""; position: absolute; inset: 0 0 -1.5rem 0; z-index: -1; pointer-events: none; opacity: 0;
+    background: linear-gradient(to bottom, var(--sc-canvas) 0%, color-mix(in oklab, var(--sc-canvas) 86%, transparent) 55%, transparent 100%);
+    transition: opacity var(--sc-d-base) var(--sc-ease-out); }
+  .is-past .bar::before { opacity: 1; }
+  .brand { justify-self: start; display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--sc-ink); }
+  .brand svg { width: 2rem; height: 2rem; flex: none; filter: drop-shadow(0 2px 6px hsl(216 40% 3% / 0.35)); }
+  .brand span { font-family: var(--sc-font-display); font-size: 1.28rem; letter-spacing: -0.02em; font-stretch: 104%; text-shadow: 0 1px 10px hsl(216 40% 3% / 0.5); }
+  .brand span b { font-weight: 620; }
+  .brand span i { font-style: normal; font-weight: 420; opacity: 0.8; }
+
+  /* compact search in the bar: only once the hero's own search has scrolled away */
+  .query {
+    display: flex; align-items: center; margin: 0;
+    background: color-mix(in oklab, var(--sc-surface) 95%, transparent);
+    border: 1px solid var(--sc-hairline); border-radius: var(--sc-r-pill); box-shadow: var(--sc-e2), var(--sc-edge);
+    padding: 0.3rem; opacity: 0; visibility: hidden; transform: translateY(-6px);
+    transition: opacity var(--sc-d-base) var(--sc-ease-out), transform var(--sc-d-base) var(--sc-ease-out), visibility 0s linear var(--sc-d-base);
+  }
+  .is-past .query { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .field { display: flex; align-items: baseline; gap: 0.45rem; padding: 0 0.3rem 0 1rem; position: relative; }
+  .field + .field::before { content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 1px; background: var(--sc-hairline-strong); }
+  .field label { font-size: var(--sc-t-xs); color: var(--sc-ink-soft); letter-spacing: 0.02em; }
+  .pick {
+    appearance: none; -webkit-appearance: none; border: 0; background: transparent; color: var(--sc-ink);
+    font-size: var(--sc-t-sm); font-weight: 520; padding: 0.55rem 1.55rem 0.55rem 0.1rem; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23A0A8B1' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.35rem center; border-radius: var(--sc-r-sm); max-width: 13rem; text-overflow: ellipsis;
+  }
+  .pick option { background: var(--sc-surface); color: var(--sc-ink); }
+  .query__count { font-size: var(--sc-t-xs); color: var(--sc-ink-soft); padding: 0 0.85rem 0 0.4rem; white-space: nowrap; }
+  .go {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap;
+    background: var(--sc-accent); color: var(--sc-accent-ink); text-decoration: none; border: 0; cursor: pointer;
+    font-weight: 600; font-size: var(--sc-t-sm); letter-spacing: -0.005em;
+    padding: 0.62rem 1.1rem; border-radius: var(--sc-r-pill);
+    box-shadow: 0 1px 0 hsl(12 100% 80% / 0.45) inset, 0 6px 16px -6px hsl(10 80% 30% / 0.55);
+    transition: transform var(--sc-d-fast) var(--sc-ease-out), background-color var(--sc-d-fast) var(--sc-ease-out);
+  }
+  .go svg { width: 1rem; height: 1rem; }
+  @media (hover: hover) and (pointer: fine) { .go:hover { background: #ff7d60; } }
+  .go:active { transform: scale(0.97); }
+  .go:focus-visible, .pick:focus-visible, .ff:focus-visible, .pop button:focus-visible, .pop input:focus-visible, .dots button:focus-visible, .place:focus-visible {
+    outline: 2px solid var(--sc-accent); outline-offset: 3px; }
+
+  /* ---------- 1 · hero: places that change, one search in the middle */
+  .hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: calc(var(--bar-h) + 2rem) var(--sc-gutter) clamp(1.25rem, 3.2vh, 2.25rem); }
+  .hero__scrim { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      linear-gradient(to bottom, hsl(214 32% 5% / 0.55) 0%, transparent 16%),
+      radial-gradient(46vw 20vh at 50% 58%, hsl(214 32% 5% / 0.42) 0%, hsl(214 32% 5% / 0.2) 60%, transparent 100%),
+      linear-gradient(to top, hsl(214 32% 5% / 0.92) 0%, hsl(214 32% 5% / 0.82) 30%, hsl(214 32% 5% / 0.62) 50%, hsl(214 32% 5% / 0.3) 66%, transparent 80%); }
+  @media (max-width: 860px) {
+    .hero__scrim { background:
+      linear-gradient(to bottom, hsl(214 32% 5% / 0.55) 0%, transparent 14%),
+      linear-gradient(to top, hsl(214 32% 5% / 0.94) 0%, hsl(214 32% 5% / 0.86) 40%, hsl(214 32% 5% / 0.68) 58%, hsl(214 32% 5% / 0.32) 74%, transparent 88%); }
+  }
+  .hero__body { position: relative; z-index: 2; width: 100%; max-width: 64rem; margin-inline: auto; text-align: center; }
+  .hero h1 { font-size: clamp(2.5rem, 1.3rem + 3.3vw, 4.6rem); margin: 0; text-wrap: balance; }
+  .hero__sub { margin: var(--sc-4) auto 0; font-size: var(--sc-t-lg); line-height: 1.45; color: #D9DDE0; max-width: 34rem; }
+
+  .finder { position: relative; margin: clamp(1.5rem, 4vh, 2.5rem) auto 0; max-width: 58rem; display: flex; align-items: stretch; gap: 0.25rem;
+    background: color-mix(in oklab, var(--panel) 92%, transparent); border: 1px solid var(--sc-hairline-strong);
+    border-radius: 1.6rem; padding: 0.45rem; box-shadow: var(--sc-e3), var(--sc-edge); text-align: left; }
+  .finder__f { position: relative; flex: 1 1 0; min-width: 0; display: flex; }
+  .finder__f--wide { flex-grow: 1.35; }
+  .finder__f + .finder__f::before { content: ""; position: absolute; left: -0.125rem; top: 22%; bottom: 22%; width: 1px; background: var(--sc-hairline-strong); }
+  .ff { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.7rem; background: transparent; border: 0; color: var(--sc-ink); cursor: pointer;
+    text-align: left; padding: 0.75rem 0.9rem; border-radius: 1.15rem; transition: background-color var(--sc-d-fast) var(--sc-ease-out); }
+  @media (hover: hover) and (pointer: fine) { .ff:hover { background: color-mix(in oklab, var(--sc-ink) 6%, transparent); } }
+  .ff[aria-expanded="true"] { background: color-mix(in oklab, var(--sc-ink) 9%, transparent); }
+  .ff .ico { color: var(--sc-accent); }
+  .ff__t { min-width: 0; display: block; }
+  .ff__l { display: block; font-size: var(--sc-t-xs); color: var(--sc-ink-soft); letter-spacing: 0.02em; }
+  .ff__v { display: block; font-weight: 580; font-size: var(--sc-t-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .finder .go { border-radius: 1.15rem; padding: 0 1.35rem; font-size: var(--sc-t-sm); min-height: 3.4rem; }
+
+  .pop { position: absolute; left: 0; bottom: calc(100% + 0.75rem); z-index: 20; width: 20rem; max-height: min(62vh, 30rem); overflow: auto;
+    background: var(--panel); border: 1px solid var(--sc-hairline-strong); border-radius: 1.25rem; padding: 0.75rem;
+    box-shadow: var(--sc-e3), var(--sc-edge); text-align: left; overscroll-behavior: contain; }
+  .pop[hidden] { display: none; }
+  .finder__f:last-of-type .pop, .pop--end { left: auto; right: 0; }
+  .pop input[type="search"] { width: 100%; background: var(--sc-canvas); border: 1px solid var(--sc-hairline-strong); border-radius: 0.8rem;
+    padding: 0.6rem 0.8rem; color: var(--sc-ink); font-size: var(--sc-t-sm); outline: none; }
+  .pop__list { margin-top: 0.4rem; display: grid; }
+  .opt { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; width: 100%; text-align: left; background: transparent;
+    border: 0; color: var(--sc-ink); padding: 0.55rem 0.7rem; border-radius: 0.7rem; cursor: pointer; font-size: var(--sc-t-sm); }
+  .opt small { color: var(--sc-ink-soft); font-size: var(--sc-t-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (hover: hover) and (pointer: fine) { .opt:hover { background: color-mix(in oklab, var(--sc-ink) 7%, transparent); } }
+  .opt[aria-pressed="true"] { background: color-mix(in oklab, var(--sc-accent) 16%, transparent); color: #fff; }
+  .opt--strong { font-weight: 600; }
+  .chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+  .chip { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; background: transparent; color: var(--sc-ink); cursor: pointer;
+    border: 1px solid var(--sc-hairline-strong); border-radius: 0.8rem; padding: 0.55rem 0.7rem; font-size: var(--sc-t-sm); text-align: left; }
+  .chip small { color: var(--sc-ink-soft); font-size: var(--sc-t-xs); font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] { border-color: var(--sc-accent); background: color-mix(in oklab, var(--sc-accent) 16%, transparent); }
+  .chip--all { grid-column: 1 / -1; }
+  .pop__note { margin: 0.6rem 0.1rem 0; font-size: var(--sc-t-xs); color: var(--sc-ink-soft); line-height: 1.45; }
+
+  .hero__foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--sc-4);
+    margin-top: clamp(1.25rem, 3.5vh, 2.25rem); }
+  .place { display: inline-flex; align-items: center; gap: 0.6rem; background: transparent; border: 0; color: #E6E9EB; cursor: pointer;
+    font-size: var(--sc-t-sm); padding: 0.35rem 0.2rem; border-radius: 0.5rem; text-align: left; }
+  .place b { font-weight: 600; color: var(--sc-ink); }
+  .place span { color: var(--sc-ink-soft); }
+  .place svg { width: 0.9rem; height: 0.9rem; color: var(--sc-accent); }
+  .dots { display: flex; align-items: center; gap: 0.35rem; }
+  .dots button { width: 1.9rem; height: 1.9rem; display: grid; place-items: center; background: transparent; border: 0; cursor: pointer; border-radius: 99px; padding: 0; }
+  .dots button i { display: block; width: 0.42rem; height: 0.42rem; border-radius: 99px; background: color-mix(in oklab, var(--sc-ink) 42%, transparent);
+    transition: transform var(--sc-d-fast) var(--sc-ease-out), background-color var(--sc-d-fast) var(--sc-ease-out); }
+  .dots button[aria-current="true"] i { background: var(--sc-ink); transform: scale(1.35); }
+  .dots .pause svg { width: 0.85rem; height: 0.85rem; color: var(--sc-ink-soft); }
+
+  /* ---------- 2 · side by side */
+  .side { background: var(--ground-2); padding-block: clamp(5rem, 11vw, 9.5rem) clamp(4rem, 8vw, 7rem); }
+  .side__grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: start; }
+  .side__lead { position: sticky; top: calc(var(--bar-h) + 3rem); }
+  .eyebrow { font-size: var(--sc-t-sm); color: var(--sc-ink-soft); margin: 0 0 var(--sc-4); }
+  .side h2 { font-size: var(--sc-t-2xl); margin: 0; }
+  .side__lead .sc-body { margin-top: var(--sc-5); }
+  .gap { margin-top: var(--sc-7); padding-top: var(--sc-5); border-top: 1px solid var(--sc-hairline); }
+  .gap__n { font-family: var(--sc-font-display); font-size: var(--sc-t-3xl); font-weight: 560; letter-spacing: var(--sc-track-tight); line-height: 1; font-stretch: 104%; display: block; }
+  .gap__l { display: block; margin-top: var(--sc-3); color: var(--sc-ink-soft); max-width: 22rem; }
+  .board { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sc-hairline); position: relative; }
+  .board__head { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 9.5rem; gap: var(--sc-4); font-size: var(--sc-t-xs); color: var(--sc-ink-soft); padding: 0 0 var(--sc-3); }
+  .board__head span:last-child { text-align: right; }
+  .row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 9.5rem; gap: var(--sc-2) var(--sc-4); align-items: center;
+    padding: var(--sc-5) 0; border-bottom: 1px solid var(--sc-hairline); will-change: transform; }
+  .row__op { font-weight: 560; font-size: var(--sc-t-lg); letter-spacing: -0.01em; line-height: 1.2; }
+  .row__trip { grid-column: 1; grid-row: 2; font-size: var(--sc-t-sm); color: var(--sc-ink-soft); line-height: 1.4; }
+  .row__bar { grid-column: 2; grid-row: 1 / span 2; height: 0.5rem; background: color-mix(in oklab, var(--sc-ink) 7%, transparent); border-radius: 99px; overflow: hidden; }
+  .row__bar i { display: block; height: 100%; width: 100%; background: color-mix(in oklab, var(--sc-ink) 46%, transparent); border-radius: 99px;
+    transform-origin: 0 50%; transform: scaleX(var(--w, 0)); transition: transform 900ms var(--sc-ease-out); }
+  .row__price { grid-column: 3; grid-row: 1; text-align: right; font-family: var(--sc-font-display); font-size: var(--sc-t-xl); font-weight: 560; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .row__day { grid-column: 3; grid-row: 2; text-align: right; font-size: var(--sc-t-xs); color: var(--sc-ink-soft); font-variant-numeric: tabular-nums; }
+  .row.is-low .row__price { color: var(--sc-accent); }
+  .row.is-low .row__bar i { background: var(--sc-accent); }
+  .board.is-waiting .row__bar i { transform: scaleX(0); }
+  .board__foot { margin-top: var(--sc-5); font-size: var(--sc-t-sm); color: var(--sc-ink-soft); max-width: 40rem; }
+  .board__empty { padding: var(--sc-7) 0; color: var(--sc-ink-soft); }
+
+  /* ---------- 3 · operators (pan) */
+  .ops { background: var(--ground-5); }
+  .ops .sc-stage { display: flex; align-items: center; }
+  .rail { gap: clamp(1.5rem, 3vw, 3rem); padding-inline: var(--sc-gutter); align-items: center; }
+  .rail__lead { flex: none; width: min(26rem, 80vw); }
+  .rail__lead h2 { font-size: var(--sc-t-2xl); margin: 0; }
+  .rail__lead p { margin: var(--sc-5) 0 0; color: var(--sc-ink-soft); }
+  .opgrid { flex: none; display: grid; grid-auto-flow: column; grid-template-rows: repeat(3, auto); gap: 0 clamp(1.5rem, 2.6vw, 2.75rem); }
+  .op { width: clamp(13rem, 17vw, 16rem); padding: var(--sc-5) 0; border-top: 1px solid var(--sc-hairline); }
+  .op h3 { margin: 0; font-family: var(--sc-font-display); font-size: var(--sc-t-lg); font-weight: 560; letter-spacing: -0.015em; line-height: 1.15; font-stretch: 104%; overflow-wrap: anywhere; }
+  .op p { margin: var(--sc-2) 0 0; font-size: var(--sc-t-sm); color: var(--sc-ink-soft); line-height: 1.4; }
+  .op p b { color: var(--sc-ink); font-weight: 560; font-variant-numeric: tabular-nums; }
+  .rail__note { flex: none; width: min(22rem, 78vw); color: var(--sc-ink-soft); font-size: var(--sc-t-sm); border-left: 1px solid var(--sc-hairline); padding-left: var(--sc-5); }
+
+  /* ---------- 4 · where the numbers come from */
+  .honest { background: var(--sc-canvas); }
+  .honest__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: center; }
+  .honest figure { margin: 0; position: relative; aspect-ratio: 4 / 5; overflow: clip; border-radius: var(--sc-r-md); box-shadow: var(--sc-e3); }
+  .honest figure img { width: 100%; height: 100%; object-fit: cover; object-position: 58% 50%; }
+  .honest figcaption { position: absolute; left: var(--sc-4); bottom: var(--sc-4); font-size: var(--sc-t-xs); color: #fff; background: hsl(214 30% 6% / 0.62); padding: 0.3rem 0.6rem; border-radius: var(--sc-r-sm); }
+  .honest h2 { font-size: var(--sc-t-2xl); margin: 0 0 var(--sc-7); max-width: 14ch; }
+  .claims { list-style: none; margin: 0; padding: 0; }
+  .claims li { padding: var(--sc-5) 0; border-top: 1px solid var(--sc-hairline); }
+  .claims li:last-child { border-bottom: 1px solid var(--sc-hairline); }
+  .claims h3 { margin: 0; font-size: var(--sc-t-lg); font-weight: 560; letter-spacing: -0.01em; }
+  .claims p { margin: var(--sc-2) 0 0; color: var(--sc-ink-soft); max-width: 36rem; }
+  .claims p b { color: var(--sc-ink); font-weight: 560; }
+
+  /* ---------- 5 · your search */
+  .close { background: var(--ground-7); min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding-block: calc(var(--bar-h) + 3rem) 2rem; }
+  .ask { font-family: var(--sc-font-display); font-size: clamp(2.2rem, 1.3rem + 3.4vw, 4.6rem); font-weight: 540; letter-spacing: var(--sc-track-tight); line-height: 1.12; margin: 0; max-width: 18ch; font-stretch: 106%; }
+  .ask .pick { font: inherit; letter-spacing: inherit; color: var(--sc-ink); max-width: none; padding: 0 0.95em 0 0.06em; display: inline; vertical-align: baseline;
+    border-bottom: 2px solid var(--sc-accent); border-radius: 0; background-size: 0.5em; background-position: right 0.1em center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23FF6B4A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  .close__count { margin: var(--sc-6) 0 0; font-size: var(--sc-t-lg); color: var(--sc-ink-soft); }
+  .close__count b { color: var(--sc-ink); font-weight: 560; }
+  .close .go { margin-top: var(--sc-6); font-size: var(--sc-t-base); padding: 0.9rem 1.5rem; }
+  .foot { margin-top: auto; padding-top: var(--sc-9); display: flex; flex-wrap: wrap; gap: var(--sc-2) var(--sc-6); font-size: var(--sc-t-xs); color: var(--sc-ink-soft); }
+  .foot a { color: var(--sc-ink-soft); }
+
+  /* ---------- tablets and phones */
+  @media (max-width: 1100px) {
+    .finder { flex-wrap: wrap; }
+    .finder__f { flex: 1 1 calc(50% - 0.25rem); }
+    .finder__f:nth-of-type(3)::before { display: none; }
+    .finder .go { flex: 1 1 100%; min-height: 3.2rem; }
+  }
+  @media (max-width: 860px) {
+    :root { --bar-h: 4rem; }
+    .bar { grid-template-columns: auto 1fr; }
+    .query { justify-self: end; }
+    .brand span { display: none; }
+    .field--when, .query__count { display: none; }
+    .field { padding-left: 0.85rem; }
+    .field label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .pick { max-width: 9.5rem; }
+    .go { padding: 0.6rem 0.95rem; }
+    .hero { padding-inline: var(--sc-gutter); }
+    .hero h1 { font-size: clamp(2.1rem, 8.6vw, 2.8rem); }
+    .hero__sub { font-size: var(--sc-t-base); }
+    .finder__f + .finder__f::before { display: none; }
+    .ff { padding: 0.6rem 0.65rem; gap: 0.5rem; }
+    .pop { position: fixed; left: 0.75rem; right: 0.75rem; bottom: 0.75rem; width: auto; max-height: 62vh; }
+    .finder__f:last-of-type .pop, .pop--end { left: 0.75rem; right: 0.75rem; }
+    .hero__foot { margin-top: 0.9rem; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+    .place { white-space: nowrap; max-width: 100%; }
+    .place span { display: none; }
+    .dots button { width: 1.6rem; height: 1.6rem; }
+    .side__grid, .honest__grid { grid-template-columns: 1fr; }
+    .side__lead { position: static; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; }
+    .row__op { grid-column: 1; grid-row: 1; font-size: var(--sc-t-base); }
+    .row__trip { grid-column: 1; grid-row: 2; }
+    .row__price { grid-column: 2; grid-row: 1; font-size: var(--sc-t-lg); }
+    .row__day { grid-column: 2; grid-row: 2; }
+    .row__bar { grid-column: 1 / -1; grid-row: 3; height: 0.4rem; margin-top: 0.4rem; }
+    .board__head { display: none; }
+    .opgrid { grid-template-rows: repeat(3, auto); gap: 0 1.25rem; }
+    .op { width: 10.5rem; padding-block: var(--sc-4); }
+    .op h3 { font-size: var(--sc-t-base); }
+    .honest figure { aspect-ratio: 4 / 3; }
+    .honest h2 { margin-bottom: var(--sc-5); }
+  }
+  @media (max-height: 700px) and (max-width: 860px) { .hero__sub { display: none; } .hero h1 { font-size: 2rem; } }
+  @media (max-width: 380px) { .pick { max-width: 7.5rem; } .go { font-size: 0.82rem; padding: 0.55rem 0.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="sc-grain" aria-hidden="true"></div>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="scene-fallback" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+</svg>
+
+<header class="bar">
+  <a class="brand" href="#top" aria-label="getPackd, back to top">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FF6B4A"/><path d="M12.5 9.5V8a3.5 3.5 0 0 1 7 0v1.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="8" y="9.5" width="16" height="16.5" rx="5" fill="#fff"/><path d="M8.6 14.2 Q16 16.6 23.4 14.2" fill="none" stroke="#FF6B4A" stroke-width="1.4" stroke-linecap="round"/><rect x="11.5" y="17.5" width="9" height="6" rx="2" fill="none" stroke="#FF6B4A" stroke-width="1.4"/><path d="M13.9 20.6l1.5 1.4 2.8-2.9" fill="none" stroke="#FF6B4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span><i>get</i><b>Packd</b></span>
+  </a>
+  <form class="query" action="#" data-query aria-label="Search departures">
+    <div class="field"><label for="where">Where</label>
+      <select class="pick" id="where" name="where" data-pick="dest"><option value="">Anywhere</option></select></div>
+    <div class="field field--when"><label for="when">When</label>
+      <select class="pick" id="when" name="when" data-pick="month"><option value="">Any month</option></select></div>
+    <span class="query__count num" data-count-short aria-live="polite"></span>
+    <a class="go" href="#" data-go>Show departures <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+  </form>
+</header>
+
+<main id="top">
+
+  <!-- 1 · hero: depth-warped places that change, and the search -->
+  <section id="hero" class="hero" data-sc-act="flow" data-sc-verify-state="" aria-labelledby="hero-h">
+    <div class="hero__scrim" aria-hidden="true"></div>
+    <div class="hero__body">
+      <h1 class="sc-display" id="hero-h">Every group departure, side by side.</h1>
+      <p class="hero__sub">Dates and prices from <span class="num" data-n="operators">34</span> Indian group-trip operators, in one place.</p>
+
+      <form class="finder" action="#" data-finder aria-label="Find group departures">
+        <div class="finder__f finder__f--wide">
+          <button type="button" class="ff" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-dest">
+            <svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg>
+            <span class="ff__t"><span class="ff__l">Where</span><span class="ff__v" data-v="dest">Anywhere</span></span>
+          </button>
+          <div class="pop" id="pop-dest" role="dialog" aria-label="Where" hidden>
+            <label class="sr-only" for="dest-filter">Search places</label>
+            <input type="search" id="dest-filter" placeholder="Country, region or city" autocomplete="off" data-filter>
+            <div class="pop__list" data-list="dest"></div>
+          </div>
+        </div>
+        <div class="finder__f">
+          <button type="button" class="ff" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-month">
+            <svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg>
+            <span class="ff__t"><span class="ff__l">When</span><span class="ff__v" data-v="month">Any dates</span></span>
+          </button>
+          <div class="pop" id="pop-month" role="dialog" aria-label="When" hidden><div class="chips" data-list="month"></div></div>
+        </div>
+        <div class="finder__f">
+          <button type="button" class="ff" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-as">
+            <svg class="ico" aria-hidden="true"><use href="#i-users"/></svg>
+            <span class="ff__t"><span class="ff__l">Travelling as</span><span class="ff__v" data-v="as">Anyone</span></span>
+          </button>
+          <div class="pop" id="pop-as" role="dialog" aria-label="Travelling as" hidden>
+            <div class="chips" data-list="as"></div>
+            <p class="pop__note">Optional. getPackd uses it to show why a trip fits you; the counts on this page do not change.</p>
+          </div>
+        </div>
+        <div class="finder__f">
+          <button type="button" class="ff" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-budget">
+            <svg class="ico" aria-hidden="true"><use href="#i-wallet"/></svg>
+            <span class="ff__t"><span class="ff__l">Budget</span><span class="ff__v" data-v="budget">Any budget</span></span>
+          </button>
+          <div class="pop pop--end" id="pop-budget" role="dialog" aria-label="Budget" hidden>
+            <div class="chips" data-list="budget"></div>
+            <p class="pop__note">Price per person, with GST where the operator says it is extra.</p>
+          </div>
+        </div>
+        <a class="go" href="#" data-go data-go-count><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg> <span data-go-label>Show departures</span></a>
+      </form>
+    </div>
+
+    <div class="hero__foot">
+      <button type="button" class="place" data-place aria-live="polite">
+        <svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg>
+        <b data-place-name>Pangong Tso, Ladakh</b><span data-place-meta></span>
+        <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow"/></svg>
+      </button>
+      <div class="dots" data-dots role="group" aria-label="Places"></div>
+    </div>
+  </section>
+
+  <!-- 2 · side by side: one valley, one Saturday -->
+  <section id="side" class="side" data-sc-act="flow" aria-labelledby="side-h">
+    <div class="sc-wrap side__grid">
+      <div class="side__lead">
+        <p class="eyebrow" data-side="eyebrow">For example, Spiti Valley</p>
+        <h2 class="sc-display" id="side-h" data-side="title">Same valley. Same Saturday. Five prices.</h2>
+        <p class="sc-body" data-side="body">On Saturday 21 November, five operators leave for Spiti Valley. Here they are side by side, cheapest first.</p>
+        <p class="gap"><span class="gap__n num" data-side="gap">₹0</span><span class="gap__l" data-side="gapl">between the cheapest and the dearest, for the same week in the same valley.</span></p>
+      </div>
+      <div>
+        <div class="board__head" aria-hidden="true"><span>Operator and trip</span><span></span><span>Price per person</span></div>
+        <ol class="board is-waiting" data-board aria-live="polite"></ol>
+        <p class="board__foot" data-side="foot"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · the operators -->
+  <section id="operators" class="ops" data-sc-act="pan" data-sc-span="3" aria-labelledby="ops-h">
+    <div data-sc-stage>
+      <div class="rail" data-sc-pan="0">
+        <div class="rail__lead">
+          <h2 class="sc-display" id="ops-h"><span class="num" data-n="operators">34</span> operators. One page.</h2>
+          <p>Backpacking collectives, trek specialists and the big tour houses, each with the departures it actually lists.</p>
+        </div>
+        <div class="opgrid" data-ops></div>
+        <p class="rail__note">Counts are departures with a date and a price on each operator's own site, read on <span data-n="snapshot">4 November 2026</span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · where the numbers come from -->
+  <section id="honest" class="honest sc-section" data-sc-act="flow" aria-labelledby="honest-h">
+    <div class="sc-wrap honest__grid">
+      <figure data-sc-reveal="up" data-sc-reveal-at="0.06 0.42">
+        <img src="assets/spiti.jpg" width="1600" height="1200" alt="A lone trekker crossing the high desert of Spiti Valley under a sky of cumulus cloud." loading="lazy" decoding="async">
+        <figcaption>Spiti Valley</figcaption>
+      </figure>
+      <div>
+        <h2 class="sc-display" id="honest-h">Where every number comes from.</h2>
+        <ul class="claims" data-sc-in data-sc-stagger="70">
+          <li><h3>Read from the operator's own page.</h3><p>Every date and price on getPackd comes from the operator's website. This page uses the snapshot taken on <b data-n="snapshot">4 November 2026</b>.</p></li>
+          <li><h3>The only thing ever added is GST.</h3><p>If an operator says GST is extra, we add 5% so prices compare fairly. <b class="num" data-n="gst">116</b> trips in this snapshot say it is. Nothing else is added.</p></li>
+          <li><h3>You book with the operator.</h3><p>No payment happens on getPackd. You enquire, then pay the operator directly, on their terms.</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · your search -->
+  <section id="search" class="close" data-sc-act="flow" aria-labelledby="ask">
+    <div class="sc-wrap" data-sc-in data-sc-stagger="70">
+      <h2 class="ask" id="ask">Show me departures to
+        <label class="sr-only" for="close-where">Where</label><select class="pick" id="close-where" data-pick="dest"><option value="">Anywhere</option></select>
+        in <label class="sr-only" for="close-when">When</label><select class="pick" id="close-when" data-pick="month"><option value="">any month</option></select>.</h2>
+      <p class="close__count" data-count-long aria-live="polite"><b>1,273</b> departures from 34 operators.</p>
+      <a class="go" href="#" data-go>Show departures <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <footer class="sc-wrap foot">
+      <span>getPackd compares group trips. It does not sell them.</span>
+      <span>Data snapshot <span data-n="snapshot">4 November 2026</span></span>
+      <span>Photographs from <a href="https://unsplash.com">Unsplash</a></span>
+    </footer>
+  </section>
+
+</main>
+
+<script src="scrollcraft.js"></script>
+<script src="app.js"></script>
+<!-- review layer: Agentation feedback toolbar (?review=0 turns it off) -->
+<script type="module" src="review/agentation.js"></script>
+</body>
+</html>

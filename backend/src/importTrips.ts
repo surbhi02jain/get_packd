@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { matchDestination } from "./destinations.js";
+import { imageUrl } from "./utils.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -19,6 +20,8 @@ const MAX_PAGES = Number(process.env.IMPORT_MAX_PAGES || 60); // pages fetched p
 const MAX_DEPARTURES = 8; // departures kept per trip
 const HORIZON_DAYS = 240;
 const PAUSE_MS = 1200;
+// for operators that price trips abroad in US dollars; the same rate as the site's ₹/$ toggle (frontend USD_RATE)
+const USD_INR = 85;
 
 // set at the start of every run, so a long-running server never works from a stale "today"
 let TODAY = "";
@@ -270,6 +273,8 @@ interface Source {
   womenOnly?: boolean;
   /** Pages read per run, when the usual cap would stop short (small API responses, say). */
   maxPages?: number;
+  /** Trips kept per run, for operators whose whole list should come in. */
+  maxTrips?: number;
 }
 
 const slugOf = (url: string) => new URL(url).pathname.replace(/\/+$/, "").split("/").pop() ?? "";
@@ -305,14 +310,20 @@ const SOURCES: Record<string, Source> = {
       const batches = (trip.relatedBatches as { batches: Record<string, unknown>[] }[]).flatMap((m) => m.batches ?? []);
       const excl = bullets(trip.exclusions);
       const incl = bullets(trip.inclusions);
+      const withFlights = /\bwith flights?\b/i.test(String(trip.title));
       return {
         url, title: String(trip.title).trim(), image: /https:\/\/[^"\\ ]+\/trip\/gallery_images\/[^"\\ ]+\.(?:webp|jpe?g|png)/.exec(data)?.[0] ?? meta(html, "og:image"),
         duration_days: num(batches[0]?.tripDays) ?? durationFrom(String(trip.title)), location: typeof trip.location === "string" ? trip.location : null,
         meeting_point: typeof trip.pickUp === "string" ? trip.pickUp : null, end_point: typeof trip.drop === "string" ? trip.drop : null,
         inclusions: incl, exclusions: excl, gst_included: gstFrom(incl, excl),
         departures: batches.filter((b) => !b.fullyBooked).map((b) => {
-          // the cheapest sharing option the operator shows, after its listed discount
-          const prices = ((b.costing as Record<string, unknown>[]) ?? []).map((c) => (num(c.price) ?? 0) - (num(c.discount) ?? 0)).filter((p) => p > 0);
+          // the cheapest sharing option the operator shows, after its listed discount. A page can offer the trip with
+          // and without flights ("Double Sharing Premium" ₹65,999, "Premium With Flights" ₹1,21,000): a trip named
+          // "with Flights" takes a flights option, any other trip one without, so the price matches the name
+          const opts = ((b.costing as Record<string, unknown>[]) ?? [])
+            .map((c) => ({ flights: /flight/i.test(String(c.title ?? "")), price: (num(c.price) ?? 0) - (num(c.discount) ?? 0) })).filter((o) => o.price > 0);
+          const same = opts.filter((o) => o.flights === withFlights);
+          const prices = (same.length ? same : opts).map((o) => o.price);
           return { start: iso(b.batchDate)!, end: iso(b.endDate), price: prices.length ? Math.min(...prices) : 0, seats_total: num(b.maxSlots), seats_left: num(b.remainSlots) };
         }),
       };
@@ -760,7 +771,7 @@ const SOURCES: Record<string, Source> = {
       return urls;
     },
     // titles can carry a price ("Kedarkantha Trek ₹5,499") that differs from the booking price, so it is left out of the name
-    read: (_url, html) => vacationLabsTrips(html).map((t) => ({ ...t, title: t.title.split(" | ")[0].replace(/\s*[-–—]?\s*(?:₹|Rs\.?)\s*[\d,]+(?:\s*per\s*(?:person|head))?/gi, "").trim() })),
+    read: (_url, html) => vacationLabsTrips(html).map((t) => ({ ...withoutBookingAmount(t, html), title: t.title.split(" | ")[0].replace(/\s*[-–—]?\s*(?:₹|Rs\.?)\s*[\d,]+(?:\s*per\s*(?:person|head))?/gi, "").trim() })),
   },
 
   "himalaya-shelter": {
@@ -935,7 +946,148 @@ const SOURCES: Record<string, Source> = {
       return drafts;
     },
   },
+
+  // Bucketlist (by ExCo): each edition page lists its departure dates with a price each, under "Departure dates"
+  bucketlist: {
+    maxTrips: 40,
+    discover: async () => (await sitemapUrls("https://bucketlist.to/sitemap.xml")).filter((u) => /\/editions\/[a-z0-9-]+$/.test(u)),
+    read(url, html) {
+      const ev = jsonLd(html).find((o) => o["@type"] === "Event");
+      const text = visibleText(html);
+      const list = /Departure dates (.*?)(?: Route | Room | Trip intensity |$)/.exec(text)?.[1] ?? "";
+      // "Nov 19 - Nov 26, 2026 ₹2,15,148" for each date
+      const departures = [...list.matchAll(/([A-Z][a-z]{2,8} \d{1,2} - [A-Z][a-z]{2,8} \d{1,2}, 20\d\d) ₹\s?([\d,]+)/g)].map((m) => {
+        const start = rangeStart(m[1]);
+        const endYear = /20\d\d/.exec(m[1])![0];
+        const endPart = /- ([A-Z][a-z]{2,8}) (\d{1,2})/.exec(m[1])!;
+        return { start: start!, end: nextDate(Number(endPart[2]), endPart[1], Number(endYear)), price: num(m[2]) ?? 0, seats_total: null, seats_left: null };
+      }).filter((d) => d.start);
+      // a page without the list still carries its next date in the schema.org event
+      if (!departures.length && ev && iso(ev.startDate)) {
+        departures.push({ start: iso(ev.startDate)!, end: iso(ev.endDate), price: Math.round(num((ev.offers as Record<string, unknown>)?.price) ?? 0), seats_total: null, seats_left: null });
+      }
+      const title = String(ev?.name ?? meta(html, "og:title") ?? "").trim();
+      if (!title || !departures.length) return null;
+      const image = Array.isArray(ev?.image) ? String(ev.image[0]) : meta(html, "og:image");
+      const place = ((ev?.location as Record<string, unknown>)?.name as string) ?? null;
+      // the length comes from the first date's start and end
+      return { ...empty, url, title, image, duration_days: null, location: place, departures };
+    },
+  },
+
+  // Boketto: the trip and every batch are in the page's Next.js data; dates are midnight India time written in UTC
+  "boketto-travels": {
+    maxTrips: 40,
+    discover: async () => (await sitemapUrls("https://www.bokettotravels.com/sitemap.xml")).filter((u) => /\/trips\/[a-z0-9-]+$/.test(u)),
+    read(url, html) {
+      const data = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/.exec(html)?.[1];
+      if (!data) return null;
+      const trip = (JSON.parse(data) as { props?: { pageProps?: { initialTrip?: Record<string, unknown> } } }).props?.pageProps?.initialTrip;
+      if (!trip || trip.isDeleted) return null;
+      const indiaDate = (v: unknown) => (typeof v === "string" ? new Date(Date.parse(v) + 330 * 60_000).toISOString().slice(0, 10) : null);
+      const lists = (trip.excludedIncluded as { name?: string; isExcluded?: boolean }[] | undefined) ?? [];
+      const incl = bullets(lists.filter((x) => !x.isExcluded).map((x) => x.name ?? ""));
+      const excl = bullets(lists.filter((x) => x.isExcluded).map((x) => x.name ?? ""));
+      const product = jsonLd(html).find((o) => o["@type"] === "Product");
+      const departures = ((trip.batches as Record<string, unknown>[] | undefined) ?? []).filter((b) => !b.soldOut && !b.isDeleted).map((b) => {
+        // twin and triple sharing are priced separately; the lower one is listed
+        const options = [b.doubleSharing, b.tripleSharing].filter(Boolean) as Record<string, unknown>[];
+        const prices = options.map((o) => num(o.price)).filter((p): p is number => p !== null && p > 0);
+        const open = options.map((o) => (num(o.availableMaleSlots) ?? 0) + (num(o.availableFemaleSlots) ?? 0));
+        const total = options.map((o) => (num(o.slotsForMale) ?? 0) + (num(o.slotsForFemale) ?? 0));
+        return {
+          start: indiaDate(b.startDate)!, end: indiaDate(b.endDate), price: prices.length ? Math.min(...prices) : num((product?.offers as Record<string, unknown>)?.price) ?? 0,
+          seats_total: total.length && Math.max(...total) > 0 ? Math.max(...total) : null, seats_left: open.length && Math.max(...total) > 0 ? Math.max(...open) : null,
+        };
+      }).filter((d) => d.start && d.price > 0);
+      const place = [trip.tripName, trip.state, trip.country, ...((trip.subLocations as string[] | undefined) ?? [])].filter(Boolean).join(" ");
+      return {
+        url, title: String(product?.name ?? trip.tripName ?? "").trim(), image: (product?.image as string) ?? meta(html, "og:image"),
+        duration_days: num(trip.days), location: place, meeting_point: null, end_point: null,
+        inclusions: incl, exclusions: excl, gst_included: gstFrom(incl, excl), departures,
+      };
+    },
+  },
+
+  // Part-Time Traveller (WordPress): each trip is a page with "📅 Dates 26 Dec – 1 Jan" and a price block; trips abroad are
+  // priced in US dollars with an early-bird tier, paid in rupees at the day's rate
+  "part-time-traveller": {
+    maxTrips: 40,
+    discover: async () => (await sitemapUrls("https://parttimetraveller.com/page-sitemap.xml"))
+      .filter((u) => !/parttimetraveller\.com\/(about-us|coming-soon|beyond-events|join-the-tribe|referral|customisation|blog)?\/?$/.test(u)),
+    read(url, html) {
+      const text = visibleText(html);
+      const dates = /📅 Dates (.+?) (?:✈|🏠|🚗|🌙|🍳|👥)/u.exec(text)?.[1].trim();
+      if (!dates) return null;
+      // the early-bird price holds until its deadline; after that the regular one
+      const early = /Early Bird Price — Ends ([A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,? 20\d\d) \$([\d,]+)/.exec(text);
+      const later = /After [A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,?(?: 20\d\d)? \$([\d,]+)/.exec(text);
+      const deadline = early ? rangeStart(early[1].replace(/(\d)(st|nd|rd|th)/, "$1")) : null;
+      const usd = early && deadline && deadline >= TODAY ? num(early[2]) : num(later?.[1]) ?? num(early?.[2]);
+      const inr = num(/Total Cost ₹\s?([\d,]+)/.exec(text)?.[1]) ?? num(/₹\s?([\d,]+) per person/.exec(text)?.[1]);
+      const price = usd ? Math.round(usd * USD_INR) : inr;
+      if (!price) return null;
+      // "26 Dec – 1 Jan", "26 Sept – 6 Oct", "June 20 – 28" or "14 – 17 Aug", with the year taken from the page
+      const dm = /^(\d{1,2})\s+([A-Za-z]{3,})/.exec(dates) ?? /^(\d{1,2})\s*–\s*\d{1,2}\s+([A-Za-z]{3,})/.exec(dates);
+      const md = /^([A-Za-z]{3,})\s+(\d{1,2})/.exec(dates);
+      const day = Number(dm?.[1] ?? md?.[2]);
+      const month = dm?.[2] ?? md?.[1];
+      if (!month) return null;
+      const years = [...text.matchAll(/\b(20\d\d)\b/g)].map((m) => Number(m[1]));
+      let start = years.length ? nextDate(day, month, Math.min(...years)) : nextDate(day, month);
+      // a trip leaves after its early-bird deadline, so a December deadline means a trip in the new year
+      if (start && deadline && start < deadline) start = nextDate(day, month, Number(start.slice(0, 4)) + 1);
+      if (!start) return null;
+      const title = (meta(html, "og:title") ?? "").replace(/\s*[-–|]\s*Part-Time Traveller.*$/i, "").trim();
+      const route = /✦ \d+ Days \/ \d+ Nights ✦ .+? ✦ (.+?) ✦/.exec(text)?.[1] ?? null;
+      return {
+        ...empty, url, title, image: meta(html, "og:image"), duration_days: durationFrom(text.slice(0, 3000)), location: route,
+        gst_included: /\bGST\b[^.]{0,20}as applicable/i.test(text) ? false : null,
+        departures: [{ start, end: null, price, seats_total: null, seats_left: null }],
+      };
+    },
+  },
+
+  // Offline by Happy Hour: one departure per trip page, published as a schema.org event; the price shown is before 5% GST
+  "offline-by-happy-hour": {
+    maxTrips: 40,
+    discover: async () => (await sitemapUrls("https://www.thehappyhour.in/sitemap.xml")).filter((u) => /\/trips\/[a-z0-9-]+-20\d\d$/.test(u)),
+    read(url, html) {
+      const ev = jsonLd(html).find((o) => o["@type"] === "Event");
+      const start = iso(ev?.startDate);
+      const offers = ev?.offers as Record<string, unknown> | undefined;
+      const price = num(offers?.lowPrice) ?? num(offers?.price);
+      if (!ev || !start || !price || /SoldOut|OutOfStock/.test(String(offers?.availability))) return null;
+      const text = visibleText(html);
+      // "MASAI MARA SAFARI - The Wild Affair" reads better as "Masai Mara Safari - The Wild Affair"; short abbreviations stay
+      const title = decodeEntities(String(ev.name)).replace(/\s+:\s*/g, ": ")
+        .replace(/\b[A-Z]{3,}\b/g, (w) => (["NYE", "USA", "UAE", "DJ"].includes(w) ? w : w[0] + w.slice(1).toLowerCase()));
+      const who = /Who it's for (.{0,40})/.exec(text)?.[1] ?? "";
+      const place = ((ev.location as Record<string, unknown>)?.name as string) ?? null;
+      return {
+        ...empty, url, title, image: meta(html, "og:image"), duration_days: durationFrom(/Length ([^·]+· \d+ nights?)/i.exec(text)?.[1] ?? ""), location: place,
+        gst_included: /all-in incl\.? 5% GST/i.test(text) ? false : null, women_only: /women[- ]only/i.test(who),
+        departures: [{ start, end: iso(ev.endDate), price, seats_total: null, seats_left: null }],
+      };
+    },
+  },
 };
+
+/**
+ * Some booking widgets list the deposit as each date's price ("₹2,000 Book now") while the page's cost section gives
+ * the trip's real price ("Triple / Quad Sharing — ₹5,999 per person ... Booking amount of ₹2,000"). When every
+ * departure shows the stated booking amount, the lowest per-person price on the page is used instead.
+ */
+function withoutBookingAmount<T extends { departures: { price: number }[] }>(trip: T, html: string): T {
+  const text = visibleText(html);
+  const deposit = num(/booking amount (?:of )?(?:₹|rs\.?|inr)\s*([\d,]+)/i.exec(text)?.[1]?.replace(/,/g, ""));
+  if (!deposit || !trip.departures.length || !trip.departures.every((d) => d.price === deposit)) return trip;
+  const perPerson = [...text.matchAll(/(?:₹|rs\.?|inr)\s*([\d,]+)\s*(?:\/-)?\s*(?:per person|\/ ?person|per head|pp)\b/gi)]
+    .map((m) => Number(m[1].replace(/,/g, ""))).filter((n) => n > deposit);
+  if (!perPerson.length) return trip;
+  const price = Math.min(...perPerson);
+  return { ...trip, departures: trip.departures.map((d) => ({ ...d, price })) };
+}
 
 /** Departures that Vacation Labs sites publish as schema.org events (on collection and trip pages): one event per date and price option. */
 function vacationLabsTrips(html: string): Draft[] {
@@ -980,8 +1132,9 @@ async function importOperator(id: string, src: Source) {
     report.note = `could not list trips: ${e instanceof Error ? e.message : e}`;
   }
   if (!urls.length && !report.note) report.note = "no trip pages found";
+  const maxTrips = src.maxTrips ?? MAX_TRIPS;
   for (const url of urls) {
-    if (trips.length >= MAX_TRIPS || report.pages_read >= (src.maxPages ?? MAX_PAGES)) break;
+    if (trips.length >= maxTrips || report.pages_read >= (src.maxPages ?? MAX_PAGES)) break;
     const html = await fetchText(url);
     report.pages_read++;
     if (!html) continue;
@@ -994,7 +1147,7 @@ async function importOperator(id: string, src: Source) {
       found = [];
     }
     for (const draft of found) {
-    if (trips.length >= MAX_TRIPS || taken.has(draft.url) || !draft.title) continue;
+    if (trips.length >= maxTrips || taken.has(draft.url) || !draft.title) continue;
     taken.add(draft.url);
     // a "capacity" of one or two is a placeholder on some sites, not a real group size
     for (const d of draft.departures) if (d.seats_total !== null && d.seats_total < 4) d.seats_total = d.seats_left = null;
@@ -1012,7 +1165,7 @@ async function importOperator(id: string, src: Source) {
     if (!draft.duration_days && draft.departures[0]?.end) draft.duration_days = daysBetween(draft.departures[0].start, draft.departures[0].end) + 1;
     // shouted titles are easier to read in title case; the words are unchanged
     if (draft.title === draft.title.toUpperCase()) draft.title = draft.title.toLowerCase().replace(/(^|[\s(/&-])([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase()).replace(/\b(\d+)(n|d)\b/gi, (_, n, u) => n + u.toUpperCase());
-    trips.push({ ...draft, operator_id: id, destination_slug: dest.slug, women_only: Boolean(draft.women_only || src.womenOnly || WOMEN_ONLY.test(draft.title)), departures });
+    trips.push({ ...draft, image: imageUrl(draft.image, draft.url), operator_id: id, destination_slug: dest.slug, women_only: Boolean(draft.women_only || src.womenOnly || WOMEN_ONLY.test(draft.title)), departures });
     }
   }
   report.trips = trips.length;

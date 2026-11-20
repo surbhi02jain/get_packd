@@ -47,7 +47,7 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 | `TRIPADVISOR_API_KEY` | `ABC123...` | Optional. Turns on Tripadvisor ratings and reviews for operators |
 | `TRIPADVISOR_REFERER` | `https://getpackd.example` | Optional. Only if the Tripadvisor key is limited to a domain |
 | `ADMIN_USERNAME` | `admin` | `/admin` page login |
-| `ADMIN_PASSWORD` | `wayfind2026` | `/admin` page login |
+| `ADMIN_PASSWORD` | a long random secret | `/admin` page login. At least 12 characters; the admin page stays switched off without one. Never commit it. |
 
 **frontend/.env**
 
@@ -85,7 +85,7 @@ cd /app/backend && yarn add <pkg>
 cd /app/frontend && yarn add <pkg>        # always yarn, never npm
 ```
 
-Open the app at the preview URL. Admin is at `/admin` (admin / wayfind2026).
+Open the app at the preview URL. Admin is at `/admin`, with the `ADMIN_USERNAME` / `ADMIN_PASSWORD` you set in `backend/.env`.
 
 ---
 
@@ -111,7 +111,7 @@ DB_NAME="wayfind"
 CORS_ORIGINS="http://localhost:3000"
 ANTHROPIC_API_KEY=<your Anthropic API key>
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=wayfind2026
+ADMIN_PASSWORD=<a long random secret, e.g. from `openssl rand -base64 24`>
 ```
 
 Start it:
@@ -191,6 +191,9 @@ Put both behind one domain with a reverse proxy routing `/api/*` → backend:800
   - Ratings are re-read with the scheduled trip refresh when they are more than a week old; `cd backend && yarn import:reviews` re-reads them on demand, then restart the backend. If a listing can't be read, its last figure is kept for up to 30 days (Google limits how long its content may be stored), then dropped.
   - These are the sites' ratings, not getPackd's; they don't change the order of results.
 - **Which operators have trips:** the importer has a reader per site in `backend/src/importTrips.ts` (`SOURCES`). Operators without a reader are still listed, with a link to their website and no departures. To add one, write a `discover()` (trip page URLs) and a `read()` (title, dates, price from the page) for it, then try it with `cd backend && yarn import:trips <operator-id>`: that lists every trip it found and any it skipped for having no known destination, without saving anything.
+- **Seasons and tips:** `backend/src/seasons.ts` holds, per destination, its best months, its off-season months with the reason, and 1–2 practical tips. All of it is hand-written, not from operators. It drives the "Best season" / off-season label on trip cards and departure dates, the season line and month dots on the results price strip when the search names one place, and the "When to go" and "Good to know" sections on trip pages. A destination missing from the file simply shows none of these. With a budget set in the search, each card also says how far under it the trip is.
+- **Did you know? facts:** `backend/src/facts.ts` holds 2–3 short facts per destination (dates, records, UNESCO listings). They appear on trip pages and as one random fact on the Spin the globe result. They're hand-written; a destination missing from the file shows none.
+- **Visas:** `backend/src/visas.ts` holds entry rules for Indian passport holders for each country with international trips: visa type, stay, cost, how to apply, documents and official links. `DEST_COUNTRIES` maps destinations to countries. It feeds the `/visas` page and the visa section on international trip pages. It is hand-written and rules change often, so re-check it every few months and update `VISAS_CHECKED`, which the page shows. A destination with no countries mapped shows no visa section.
 - **What is shown for imported trips:** title, photo, dates, listed price, seats (where published), and the operator's own inclusion/exclusion lists. The only amount ever added to a listed price is 5% GST when the operator says GST is extra. getPackd's own ratings and reviews, group make-up and verification are left empty (Google and Tripadvisor ratings are shown separately, above).
 - **Admin:** `/admin` → log in → add operators, trips (plus first departure) and departures, verify operators, view leads and operator signups.
 - **Run backend tests:** start the backend, then `cd backend && REACT_APP_BACKEND_URL=http://localhost:8001 yarn test`. Without that variable, the tests hit the Studio preview URL.

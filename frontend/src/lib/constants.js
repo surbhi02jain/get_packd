@@ -5,18 +5,30 @@ import {
 
 export const USD_RATE = 85;
 
+// "travelling as", which the search no longer asks (it asks how many travellers, and women-only or not); kept to name
+// these in old links and the plain-words search
 export const PERSONAS = [
-  ["solo_woman", "Solo woman"], ["solo_man", "Solo man"], ["friends", "Friends"], ["couple", "Couple"],
-  ["parents", "Parents"], ["family", "Family with kids"], ["senior_solo", "60+ solo"],
-  ["senior_group", "60+ with friends/spouse"], ["corporate", "Corporate / college group"],
+  ["solo_woman", "Solo woman"], ["solo", "Solo"], ["friends", "Friends"], ["couple", "Couple"], ["senior", "Senior"],
 ];
+
+// Who getPackd is for right now: solo travellers and friend groups, roughly 22–32. Choices for anyone else, and ones no
+// trip matches yet, are hidden from the quiz and the site's links, not deleted (an old link still works).
+// Take a key out of a list to bring it back.
+export const HIDDEN = {
+  style: ["photography", "workation"],
+  collections: ["solo-travel-60-plus", "luxury-escapes", "spiti-group-trips-october"],
+  // features the data can't support yet: the Fit score quiz (pace, stays and group size aren't on operators' sites),
+  // the travellers count (few operators list seats left), saved searches and their alerts, and the plain-words search
+  features: ["fitScore", "travellers", "saveSearch", "alerts", "plainWordsSearch"],
+};
+export const hidden = (feature) => HIDDEN.features.includes(feature);
 
 export const STYLES = {
   hiking: { label: "Hiking & trekking", icon: Mountain, color: "#15803D", anim: "hiker" },
-  offbeat: { label: "Offbeat", icon: Compass, color: "#EA580C", anim: "sunrise" },
+  offbeat: { label: "Offbeat", icon: Compass, color: "#475569", anim: "sunrise" },
   luxury: { label: "Luxury", icon: Gem, color: "#BE185D", anim: "sparkle" },
   backpacking: { label: "Budget backpacking", icon: Backpack, color: "#0D9488" },
-  culture_food: { label: "Culture & food", icon: UtensilsCrossed, color: "#D97706" },
+  culture_food: { label: "Culture & food", icon: UtensilsCrossed, color: "#c9302a" },
   beaches: { label: "Beaches & islands", icon: Palmtree, color: "#0284C7" },
   wildlife: { label: "Wildlife & safari", icon: PawPrint, color: "#65A30D" },
   spiritual: { label: "Spiritual & wellness", icon: Flower2, color: "#9333EA" },
@@ -48,8 +60,8 @@ export const LABELS = {
 };
 
 export const STATUS = {
-  open: { label: "Open", cls: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300" },
-  filling: { label: "Filling fast", cls: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300" },
+  open: { label: "Open", cls: "bg-[#16181b]/[.07] text-[#16181b]" },
+  filling: { label: "Filling fast", cls: "bg-[#c9302a]/10 text-[#a3271f]" },
   confirmed: { label: "Confirmed", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
   cancelled: { label: "Cancelled", cls: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300" },
 };
@@ -61,3 +73,5 @@ export const CATEGORY_PAGES = {
   "offbeat-journeys": { title: "Offbeat Journeys", sub: "Places the itineraries forgot.", params: { style: "offbeat" } },
   "spiti-group-trips-october": { title: "Spiti Group Trips in October", sub: "Compare every Spiti departure in October side by side.", params: { q: "spiti", start: "2026-10-01", end: "2026-10-31", flex: "0" } },
 };
+// the collections the site links to
+export const COLLECTIONS = Object.fromEntries(Object.entries(CATEGORY_PAGES).filter(([slug]) => !HIDDEN.collections.includes(slug)));

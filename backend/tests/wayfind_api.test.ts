@@ -35,7 +35,8 @@ const post = (path: string, opts?: CallOptions) => call("POST", path, opts);
 
 let adminToken: string;
 before(async () => {
-  const r = await post("/admin/login", { json: { username: "admin", password: "wayfind2026" } });
+  // the server's own admin login, given to the tests through the environment (never written in the code)
+  const r = await post("/admin/login", { json: { username: process.env.ADMIN_USERNAME ?? "admin", password: process.env.ADMIN_PASSWORD ?? "" } });
   assert.equal(r.status, 200, r.text);
   adminToken = r.data.token;
 });
@@ -123,6 +124,12 @@ describe("Search", () => {
     const prices: number[] = r.data.clusters.slice(0, 6).filter((c: object) => "from_price" in c).map((c: { from_price: number }) => c.from_price);
     assert.deepEqual(prices, [...prices].sort((a, b) => a - b), `not sorted ${prices}`);
   });
+
+  it("sort priciest", async () => {
+    const r = await get("/search", { params: { sort: "priciest" } });
+    const prices: number[] = r.data.clusters.slice(0, 6).map((c: { lead: { true_price: number } }) => c.lead.true_price);
+    assert.deepEqual(prices, [...prices].sort((a, b) => b - a), `not sorted high to low ${prices}`);
+  });
 });
 
 // ---------- trip / operator ----------
@@ -189,32 +196,46 @@ describe("Leads", () => {
 });
 
 // ---------- alerts ----------
+// saved searches belong to an account: no one can list or delete them by typing someone's email
 describe("Alerts", () => {
-  const email = "TEST_alerts@example.com";
   let createdId: string;
+  let auth: Record<string, string>;
+  let other: Record<string, string>;
+  const signup = async (tag: string) => {
+    const r = await post("/auth/signup", { json: { name: "TEST alerts", email: `test_alerts_${tag}_${Date.now()}@example.com`, password: "Test@12345" } });
+    assert.equal(r.status, 200, r.text);
+    return { Authorization: `Bearer ${r.data.token}` };
+  };
+
+  it("needs an account", async () => {
+    assert.equal((await post("/alerts", { json: { email: "someone@example.com", filters: {} } })).status, 401);
+    assert.equal((await get("/alerts", { params: { email: "someone@example.com" } })).status, 401);
+    assert.equal((await call("DELETE", "/alerts/anything")).status, 401);
+  });
 
   it("create alert", async () => {
-    const r = await post("/alerts", { json: { email, filters: { gender: "women_only" }, label: "TEST women-only" } });
-    assert.equal(r.status, 200);
+    auth = await signup("a");
+    other = await signup("b");
+    const r = await post("/alerts", { headers: auth, json: { email: "ignored@example.com", filters: { gender: "women_only" }, label: "TEST women-only" } });
+    assert.equal(r.status, 200, r.text);
     assert.ok(r.data.matches_now > 0);
+    assert.ok(r.data.email.startsWith("test_alerts_a_"), "the account's email, not the one sent");
     createdId = r.data.id;
   });
 
-  it("invalid email", async () => {
-    const r = await post("/alerts", { json: { email: "notanemail", filters: {} } });
-    assert.equal(r.status, 400);
-  });
-
   it("list alerts", async () => {
-    const r = await get("/alerts", { params: { email } });
+    const r = await get("/alerts", { headers: auth });
     assert.equal(r.status, 200);
     assert.ok(r.data.items.some((a: { id: string }) => a.id === createdId));
+    const theirs = await get("/alerts", { headers: other });
+    assert.ok(!theirs.data.items.some((a: { id: string }) => a.id === createdId), "another account doesn't see them");
   });
 
   it("delete alert", async () => {
-    let r = await call("DELETE", `/alerts/${createdId}`);
+    assert.equal((await call("DELETE", `/alerts/${createdId}`, { headers: other })).status, 404, "another account can't delete them");
+    let r = await call("DELETE", `/alerts/${createdId}`, { headers: auth });
     assert.equal(r.status, 200);
-    r = await get("/alerts", { params: { email } });
+    r = await get("/alerts", { headers: auth });
     assert.ok(!r.data.items.some((a: { id: string }) => a.id === createdId));
   });
 });
@@ -248,13 +269,101 @@ describe("Shortlists", () => {
     assert.ok(key in votes);
     assert.ok("TEST_Alice" in votes[key]);
   });
+
+  it("vote names are kept as typed", async () => {
+    const home = (await get("/home")).data;
+    const dep: string = home.trending[1].dep_id;
+    for (const voter of ["राहुल", "प्रिया", "Priya S", "Priya S."]) {
+      const r = await post(`/shortlists/${sid}/vote`, { json: { dep_id: dep, voter, vote: "up" } });
+      assert.equal(r.status, 200, r.text);
+    }
+    const names = Object.keys((await get(`/shortlists/${sid}`)).data.shortlist.votes[dep.replaceAll(".", "_")]);
+    assert.equal(names.length, 4, `four different voters, got ${names.join(", ")}`);
+    assert.ok(names.includes("राहुल") && names.includes("प्रिया") && !names.includes("anon"));
+    assert.equal((await post(`/shortlists/${sid}/vote`, { json: { dep_id: dep, voter: "  ", vote: "up" } })).status, 422);
+  });
 });
 
 // ---------- operator signup ----------
 describe("OperatorSignup", () => {
   it("signup", async () => {
-    const r = await post("/operator-signups", { json: { company: "TEST_Co", contact_name: "X", email: "test@co.com", phone: "9999", category: "community" } });
-    assert.equal(r.status, 200);
+    const r = await post("/operator-signups", { json: { company: "TEST_Co", contact_name: "Xavier", email: "test@co.com", phone: "9999999999", category: "community" } });
+    assert.equal(r.status, 200, r.text);
+  });
+
+  it("turns away blanks and junk", async () => {
+    const ok = { company: "TEST_Co", contact_name: "Xavier", email: "test@co.com", phone: "9999999999", category: "community" };
+    for (const bad of [{ company: "   " }, { contact_name: " " }, { email: "not-an-email" }, { phone: "abc" }, { departures_per_year: -5 }, { company: "x".repeat(5000) }, { message: "y".repeat(10000) }]) {
+      const r = await post("/operator-signups", { json: { ...ok, ...bad } });
+      assert.equal(r.status, 422, `${JSON.stringify(bad).slice(0, 60)} → ${r.status}`);
+    }
+  });
+});
+
+// ---------- search: what people type ----------
+describe("Search words and dates", () => {
+  it("a picked range means trips that fit inside it", async () => {
+    const r = (await get("/search", { params: { start: "2026-12-24", end: "2026-12-28", flex: "0", limit: "300" } })).data;
+    for (const c of r.clusters) for (const d of c.departures) {
+      assert.ok(d.start >= "2026-12-24" && d.end <= "2026-12-28", `${c.lead.title} ${d.start}–${d.end}`);
+    }
+  });
+
+  it("a place named outright is that place", async () => {
+    const r = (await get("/search", { params: { q: "Bali", limit: "300" } })).data;
+    assert.ok(r.total_departures > 0);
+    assert.ok(r.clusters.every((c: { lead: { dest_slug: string } }) => c.lead.dest_slug === "bali"), "no Bali Pass trek in Uttarakhand");
+  });
+
+  it("a misspelt place is corrected", async () => {
+    const right = (await get("/search", { params: { q: "kedarkantha" } })).data;
+    const typo = (await get("/search", { params: { q: "kedarkanta" } })).data;
+    assert.ok(right.total_departures > 0);
+    assert.equal(typo.total_departures, right.total_departures);
+    assert.equal(typo.corrected_q, "kedarkantha");
+  });
+
+  it("a place with trips, but none on the dates, isn't swapped for another", async () => {
+    const r = (await get("/search", { params: { q: "Kasol", start: "2026-12-03", end: "2026-12-06", flex: "0" } })).data;
+    assert.ok(!r.interpreted && !r.corrected_q);
+  });
+
+  it("a sentence is read as filters", async () => {
+    const r = (await get("/search", { params: { q: "beach trip for New Year" } })).data;
+    assert.ok(r.total_departures > 0);
+    assert.equal(r.interpreted.params.style, "beaches");
+    assert.ok(r.interpreted.params.start.endsWith("-12-28"));
+  });
+});
+
+// ---------- analytics ----------
+describe("Analytics", () => {
+  const browser = { "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1" };
+  const send = (body: unknown, headers: Record<string, string> = browser) =>
+    call("POST", "/events", { headers: { ...headers, "Content-Type": "text/plain" }, json: body });
+
+  it("takes events as plain text, as sendBeacon sends them", async () => {
+    const home = (await get("/home")).data;
+    const c = home.trending[0];
+    assert.equal((await send({ type: "page_view", path: `/trip/${c.trip_id}` })).status, 204);
+    assert.equal((await send({ type: "book_click", path: `/trip/${c.trip_id}`, props: { op: c.op.id, trip: c.trip_id, dep: c.dep_id } })).status, 204);
+    assert.equal((await send({ type: "search", path: "/search", props: { q: "TEST_nowhere", results: 0 } })).status, 204);
+  });
+
+  it("turns away junk and ignores bots", async () => {
+    assert.equal((await send({ type: "made_up" })).status, 422);
+    assert.equal((await send({ type: "page_view", props: { x: "y".repeat(1000) } })).status, 422);
+    assert.equal((await send({ type: "page_view", path: "/" }, { "User-Agent": "Googlebot/2.1" })).status, 204);
+  });
+
+  it("reports them to the admin only", async () => {
+    assert.equal((await get("/admin/analytics")).status, 401);
+    const r = await get("/admin/analytics", { params: { days: "7" }, headers: { "x-admin-token": adminToken } });
+    assert.equal(r.status, 200, r.text);
+    assert.ok(r.data.totals.book_clicks >= 1 && r.data.totals.visitors >= 1);
+    assert.ok(r.data.by_operator.length >= 1 && r.data.by_operator[0].name);
+    assert.ok(r.data.empty_searches.some((x: { q: string }) => x.q === "test_nowhere"));
+    assert.ok(r.data.daily.length >= 1);
   });
 });
 
@@ -316,17 +425,25 @@ describe("Admin", () => {
     const oid = r.data.id;
     const meta = (await get("/meta")).data;
     const dest = meta.destinations[0].slug;
+    // dates relative to today, so the test doesn't go stale
+    const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
     r = await post("/admin/trips", { headers, json: { operator_id: oid, title: "TEST_Trip Awesome", destination_slug: dest,
                                                       duration_days: 5, categories: ["hiking"], audience_tags: ["solo", "friends"],
-                                                      gender_policy: "mixed", age_band: "25-35", start_date: "2026-11-10",
+                                                      gender_policy: "mixed", age_band: "25-35", start_date: day(30),
                                                       price_inr: 25000, seats_total: 12 } });
     assert.equal(r.status, 200, r.text);
     const tid = r.data.trip_id;
-    // add second departure
-    const r2 = await post("/admin/departures", { headers, json: { trip_id: tid, start_date: "2026-12-01", price_inr: 26000, seats_total: 12 } });
+    // add a second departure, and one that has already left
+    const r2 = await post("/admin/departures", { headers, json: { trip_id: tid, start_date: day(50), price_inr: 26000, seats_total: 12 } });
     assert.equal(r2.status, 200);
-    // trip detail lists both departures
+    const r3 = await post("/admin/departures", { headers, json: { trip_id: tid, start_date: day(-5), price_inr: 20000, seats_total: 12 } });
+    assert.equal(r3.status, 200);
+    // trip detail and search list only the two upcoming departures
     const td = (await get(`/trips/${tid}`)).data;
     assert.equal(td.departures.length, 2);
+    const s = (await get(`/search?q=${encodeURIComponent("TEST_Trip Awesome")}`)).data;
+    const c = s.clusters.find((x: { trip_id: string }) => x.trip_id === tid);
+    assert.equal(c?.departures.length, 2);
+    assert.ok(c.departures.every((d: { start: string }) => d.start >= day(0)));
   });
 });

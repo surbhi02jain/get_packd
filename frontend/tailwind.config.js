@@ -21,7 +21,8 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)'
       },
       colors: {
-        midnight: '#0B1F2A', coral: '#FF6B4A', amber: { DEFAULT: '#FFB547' }, sand: '#FAF6EF', mint: '#10B981',
+        // coral is a variable so a page can swap the accent (the landing page uses blue ink); it is #FF6B4A everywhere else
+        midnight: '#0B1F2A', coral: 'rgb(var(--coral) / <alpha-value>)', amber: { DEFAULT: '#FFB547' }, sand: '#FAF6EF', mint: '#10B981',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

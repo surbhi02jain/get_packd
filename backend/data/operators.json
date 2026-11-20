@@ -256,6 +256,30 @@
     "instagram_unconfirmed": ""
   },
   {
+    "id": "bucketlist",
+    "name": "Bucketlist",
+    "category": "community",
+    "website": "https://bucketlist.to/",
+    "instagram": "@bucketlist.to",
+    "instagram_unconfirmed": ""
+  },
+  {
+    "id": "boketto-travels",
+    "name": "Boketto Travels",
+    "category": "community",
+    "website": "https://www.bokettotravels.com/",
+    "instagram": "@bokettotravels",
+    "instagram_unconfirmed": ""
+  },
+  {
+    "id": "offline-by-happy-hour",
+    "name": "Offline by Happy Hour",
+    "category": "community",
+    "website": "https://www.thehappyhour.in/",
+    "instagram": "@offlinebyhappyhour",
+    "instagram_unconfirmed": ""
+  },
+  {
     "id": "trek-the-himalayas",
     "name": "Trek The Himalayas (TTH)",
     "category": "trekking",
@@ -422,7 +446,7 @@
     "name": "TrekKaro",
     "category": "trekking",
     "website": "https://www.trekkaro.com/",
-    "instagram": "@Trekkaro",
+    "instagram": "@trekkaro",
     "instagram_unconfirmed": ""
   },
   {

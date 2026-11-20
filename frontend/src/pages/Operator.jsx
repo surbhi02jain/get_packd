@@ -40,7 +40,7 @@ function ExternalReviews({ op }) {
               {r.author_url ? <a href={r.author_url} target="_blank" rel="noreferrer" className="font-semibold hover:underline">{r.author}</a> : <span className="font-semibold">{r.author}</span>}
               <span className="ml-auto text-xs text-muted-foreground">{when(r)}</span>
             </div>
-            <p className="mt-2 text-amber" aria-label={`${r.rating} of 5`}>{stars(r.rating)}</p>
+            <p className="mt-2 text-[#16181b]" aria-label={`${r.rating} of 5`}>{stars(r.rating)}</p>
             {r.title && <p className="mt-1 font-semibold">{r.title}</p>}
             <p className="mt-1 line-clamp-6 whitespace-pre-line text-muted-foreground">{r.text}</p>
             <p className="mt-2 text-[11px] text-muted-foreground">
@@ -55,25 +55,27 @@ function ExternalReviews({ op }) {
 
 export default function Operator() {
   const { id } = useParams();
-  const { data, isLoading } = useQuery({ queryKey: ["op", id], queryFn: () => http.get(`/operators/${id}`).then((r) => r.data) });
+  const { data, isLoading, isError } = useQuery({ queryKey: ["op", id], queryFn: () => http.get(`/operators/${id}`).then((r) => r.data) });
+  // an address with no operator behind it says so, instead of loading forever
+  if (isError) return <div className="min-h-screen"><Navbar /><p className="p-20 text-center" data-testid="operator-not-found">Operator not found. <Link to="/operators" className="underline">See all operators</Link></p><Footer /></div>;
   if (isLoading || !data) return <div className="min-h-screen"><Navbar /><div className="shimmer m-8 h-64 rounded-[28px]" /></div>;
   const { operator: op, departures, reviews } = data;
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="mx-auto max-w-[1400px] space-y-8 px-4 py-10 sm:px-8">
-        <section className="relative overflow-hidden rounded-[32px] bg-midnight p-8 text-sand grain sm:p-12" data-testid="operator-header">
+      <main id="main" className="mx-auto max-w-[1400px] space-y-8 px-4 py-10 sm:px-8">
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 shadow-lift sm:p-12" data-testid="operator-header">
           <div className="relative z-10 flex flex-wrap items-start gap-6">
-            <span className="grid h-20 w-20 place-items-center rounded-full bg-coral font-display text-3xl font-bold">{op.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}</span>
+            <span className="grid h-20 w-20 place-items-center rounded-full bg-[#16181b] font-display text-3xl font-bold text-white">{op.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}</span>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">{op.trips_imported !== false && <SampleBadge />}<span className="label-mono !text-amber">{LABELS.op_type[op.category]}</span></div>
-              <h1 className="mt-2 font-display text-4xl sm:text-5xl" data-testid="operator-name">{op.name}</h1>
-              {op.bio && <p className="mt-2 max-w-2xl text-sand/75">{op.bio}</p>}
+              <div className="flex flex-wrap items-center gap-3">{op.trips_imported !== false && <SampleBadge />}<span className="label-mono">{LABELS.op_type[op.category]}</span></div>
+              <h1 className="mt-2 font-display text-4xl font-light sm:text-5xl" data-testid="operator-name">{op.name}</h1>
+              {op.bio && <p className="mt-2 max-w-2xl text-muted-foreground">{op.bio}</p>}
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
                 <VerifiedStamp status={op.verified_status} />
                 {op.years_active != null && <span>{op.years_active} years active</span>}
-                {op.rating != null && <span className="flex items-center gap-1"><Star size={14} className="fill-amber text-amber" /> {op.rating} · {op.review_count} reviews</span>}
-                <RatingBadges ratings={op.external_ratings} className="!text-sm !text-sand/80 [&_b]:!text-sand" />
+                {op.rating != null && <span className="flex items-center gap-1"><Star size={14} className="fill-[#16181b] text-[#16181b]" /> {op.rating} · {op.review_count} reviews</span>}
+                <RatingBadges ratings={op.external_ratings} className="!text-sm !text-muted-foreground [&_b]:!text-foreground" />
                 {op.website && <a href={op.website} target="_blank" rel="noreferrer" data-testid="operator-website" className="flex items-center gap-1 underline"><Globe2 size={14} /> {op.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}
                 {op.instagram && <a href={`https://www.instagram.com/${op.instagram.replace("@", "")}/`} target="_blank" rel="noreferrer" data-testid="operator-instagram" className="flex items-center gap-1 underline"><Instagram size={14} /> {op.instagram}</a>}
                 {op.instagram_followers != null && <span data-testid="operator-instagram-followers" title="A sign of audience size, not a rating."><b>{compact(op.instagram_followers)}</b> Instagram followers{followerNote(op.instagram_followers_at, op.instagram_followers_source) ? ` · ${followerNote(op.instagram_followers_at, op.instagram_followers_source)}` : ""}</span>}
@@ -105,7 +107,7 @@ export default function Operator() {
             <div className="mt-4 space-y-3">
               {op.leaders.map((l, i) => (
                 <div key={i} className="flex items-center justify-between rounded-2xl border p-3 text-sm">
-                  <span><b>{l.name}</b> {l.gender === "female" && <span className="stamp ml-2 border-coral text-coral">Women leader</span>}</span>
+                  <span><b>{l.name}</b> {l.gender === "female" && <span className="stamp ml-2 border-[#c9302a] text-[#c9302a]">Women leader</span>}</span>
                   <span className="text-muted-foreground">{l.years} yrs · {l.trips_led} trips</span>
                 </div>
               ))}

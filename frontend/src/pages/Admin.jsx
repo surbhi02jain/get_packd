@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AdminAnalytics from "@/components/AdminAnalytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,10 +89,11 @@ export default function Admin() {
             <button data-testid="admin-refresh-now" onClick={startRefresh} disabled={rf.running} className="ml-auto rounded-xl bg-coral px-4 py-2 font-semibold text-white disabled:opacity-50">{rf.running ? "Refreshing…" : "Refresh now"}</button>
           </div>
         )}
-        <Tabs defaultValue="leads" className="mt-6">
+        <Tabs defaultValue="analytics" className="mt-6">
           <TabsList className="flex-wrap">
-            {["leads", "operators", "add-operator", "add-trip", "add-departure", "signups"].map((t) => <TabsTrigger key={t} value={t} data-testid={`admin-tab-${t}`} className="capitalize">{t.replace("-", " ")}</TabsTrigger>)}
+            {["analytics", "leads", "operators", "add-operator", "add-trip", "add-departure", "signups"].map((t) => <TabsTrigger key={t} value={t} data-testid={`admin-tab-${t}`} className="capitalize">{t.replace("-", " ")}</TabsTrigger>)}
           </TabsList>
+          <TabsContent value="analytics"><AdminAnalytics headers={h} /></TabsContent>
           <TabsContent value="leads">
             <div className="overflow-x-auto rounded-2xl bg-card shadow-soft"><table className="w-full text-sm" data-testid="admin-leads-table">
               <thead><tr className="text-left text-xs uppercase text-muted-foreground">{["When", "Name", "Phone", "Party", "Trip", "Operator", "Departure", "Message"].map((x) => <th key={x} className="p-3">{x}</th>)}</tr></thead>

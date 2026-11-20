@@ -31,7 +31,7 @@ export function Glow({ className = "", drift = 60, duration = 18 }) {
 
 /** Small spaced-out label above a heading. */
 export const Kicker = ({ children, className = "" }) => (
-  <Reveal className={`flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.38em] text-muted-foreground ${className}`}>
+  <Reveal className={`flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.12em] text-muted-foreground ${className}`}>
     <Star size={10} className="text-coral" />{children}
   </Reveal>
 );
