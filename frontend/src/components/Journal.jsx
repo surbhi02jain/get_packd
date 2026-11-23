@@ -60,8 +60,13 @@ function AirmailStamp({ to, label, sub, photo, i, testId }) {
   const big = fit(name, 112, 21, 0.6), small = fit(note, 112, 10.5, 1.2);
   const win = { x: SX + WIN, y: SY + WIN, width: SW - 2 * WIN, height: SH - 2 * WIN };
   return (
-    <motion.div initial={{ opacity: 0, y: 40, rotate: tilt * 3 }} whileInView={{ opacity: 1, y: 0, rotate: tilt }} viewport={{ once: true, margin: "-60px" }}
-      transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.1 + i * 0.07 }} whileHover={{ rotate: 0, y: -8, scale: 1.04 }}
+    // The stamp watches the scroll and its label follows through the variants: Safari never reports an element inside an
+    // SVG as scrolled into view, so a label with its own whileInView stayed invisible on iPhones.
+    <motion.div initial="hidden" whileInView="shown" viewport={{ once: true, margin: "-60px" }} whileHover={{ rotate: 0, y: -8, scale: 1.04 }}
+      variants={{
+        hidden: { opacity: 0, y: 40, rotate: tilt * 3 },
+        shown: { opacity: 1, y: 0, rotate: tilt, transition: { type: "spring", stiffness: 200, damping: 20, delay: 0.1 + i * 0.07 } },
+      }}
       className="group w-[46%] max-w-[270px] sm:w-[240px]">
       <Link to={to} data-testid={testId} aria-label={`${label}: ${sub}`} className="block">
         <svg viewBox="0 0 330 262" className="block h-auto w-full overflow-visible transition-[filter] duration-300 [filter:drop-shadow(0_6px_8px_rgba(28,34,44,.16))] group-hover:[filter:drop-shadow(0_18px_18px_rgba(28,34,44,.24))]">
@@ -77,8 +82,10 @@ function AirmailStamp({ to, label, sub, photo, i, testId }) {
           <rect {...win} rx="2" fill="none" stroke="rgba(28,34,44,.18)" strokeWidth="1.5" />
           {/* the airmail label, stuck over the stamp's corner with a thump once the stamp has landed */}
           <g transform={`translate(${SX + SW - 4} ${SY + SH - 32}) rotate(${LABEL_TILT[i % LABEL_TILT.length]})`}>
-            <motion.g initial={{ opacity: 0, scale: 1.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, margin: "-60px" }}
-              transition={{ type: "spring", stiffness: 420, damping: 22, delay: 0.45 + i * 0.07 }}>
+            <motion.g variants={{
+              hidden: { opacity: 0, scale: 1.6 },
+              shown: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 420, damping: 22, delay: 0.45 + i * 0.07 } },
+            }}>
               <rect x="-66" y="-26" width="132" height="52" fill="#f6f5f1" stroke={ink} strokeWidth="2" />
               <rect x="-62" y="-22" width="124" height="44" fill="none" stroke={ink} strokeWidth="1" />
               <rect x="-62" y="2" width="124" height="20" fill={ink} />
