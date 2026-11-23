@@ -1,7 +1,7 @@
 # getPackd — "Skyscanner for group trips"
 
 Every group departure from Indian operators in one place, compared at a like-for-like **true price**.
-Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScript (Express)** · **MongoDB** · NL search via **Claude Sonnet 4.5** (Anthropic API key).
+Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScript (Express)** · **MongoDB**. The AI (Claude) plain-words search is switched off for now.
 
 > Operators are **real companies** (the list in `backend/data/operators.json`). Their trips, dates and prices are read from their own websites by `yarn import:trips` and saved in `backend/data/trips.json`, which is seeded on backend start. getPackd does not rate, review or vet these operators, and shows nothing about them that their own site doesn't publish.
 
@@ -10,7 +10,7 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 ## Project layout
 
 ```
-/app
+.
 ├── backend/
 │   ├── src/
 │   │   ├── server.ts        # Express app, all routes under /api
@@ -23,12 +23,11 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 │   ├── data/                # operators.json (the operator list), trips.json (latest import)
 │   ├── tests/               # API tests (node:test)
 │   ├── package.json
-│   └── .env                 # MONGO_URL, DB_NAME, ANTHROPIC_API_KEY, ADMIN_*
-├── frontend/
-│   ├── src/               # pages/, components/, lib/, context/
-│   ├── package.json
-│   └── .env               # REACT_APP_BACKEND_URL
-└── memory/                # PRD.md, test_credentials.md
+│   └── .env                 # MONGO_URL, DB_NAME, ADMIN_*
+└── frontend/
+    ├── src/               # pages/, components/, lib/, context/
+    ├── package.json
+    └── .env               # REACT_APP_BACKEND_URL
 ```
 
 ## Environment variables
@@ -40,8 +39,8 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 | `MONGO_URL` | `mongodb://localhost:27017` | Mongo connection string |
 | `DB_NAME` | `test_database` | Database name |
 | `CORS_ORIGINS` | `*` | Comma-separated origins |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` | Only needed for the ✨ natural-language search |
-| `NL_MODEL` | `claude-sonnet-4-5-20250929` | Optional. Model used for the natural-language search |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` | Not used for now: the AI search is switched off (see `nl-search` in `backend/src/server.ts`) |
+| `NL_MODEL` | `claude-sonnet-4-5-20250929` | Not used for now. Model for the AI search |
 | `PORT` | `8001` | Optional. Port the API listens on |
 | `GOOGLE_PLACES_API_KEY` | `AIza...` | Optional. Turns on Google Maps ratings and reviews for operators |
 | `TRIPADVISOR_API_KEY` | `ABC123...` | Optional. Turns on Tripadvisor ratings and reviews for operators |
@@ -53,43 +52,13 @@ Stack: **React (CRA + craco) + Tailwind + Framer Motion** · **Node.js + TypeScr
 
 | Key | Example |
 |---|---|
-| `REACT_APP_BACKEND_URL` | `http://localhost:8001` (local) or your preview URL (Studio) |
+| `REACT_APP_BACKEND_URL` | `http://localhost:8001` (local) or the API's public URL |
 
 The frontend always calls `${REACT_APP_BACKEND_URL}/api/...`. Do **not** add `/api` to the variable.
 
 ---
 
-## Option A — Run in Emergent Studio (preview environment)
-
-> **Note:** the Studio image starts the backend with `uvicorn server:app` (Python). The backend is now Node.js/TypeScript, so the supervisor `backend` program must be changed to run `yarn start` (after `yarn install && yarn build`) in `/app/backend`, and `ANTHROPIC_API_KEY` must be set, because the Emergent LLM key only works through the Python `emergentintegrations` package.
-
-- Services are managed by **supervisor**: backend on `0.0.0.0:8001`, frontend on `3000`, MongoDB local.
-- The ingress sends `/api/*` → backend (8001) and everything else → frontend (3000).
-- `frontend/.env` → `REACT_APP_BACKEND_URL` is the public preview URL (e.g. `https://<app>.preview.emergentagent.com`). Don't change it.
-- Hot reload is on for both services. Code edits apply automatically.
-
-Useful commands (Studio terminal):
-
-```bash
-sudo supervisorctl status                 # see what's running
-sudo supervisorctl restart backend        # after editing backend/.env or adding yarn packages
-sudo supervisorctl restart frontend       # after editing frontend/.env or adding yarn packages
-tail -n 100 /var/log/supervisor/backend.err.log    # backend errors
-tail -n 100 /var/log/supervisor/frontend.out.log   # frontend build output
-```
-
-Adding dependencies in Studio:
-
-```bash
-cd /app/backend && yarn add <pkg>
-cd /app/frontend && yarn add <pkg>        # always yarn, never npm
-```
-
-Open the app at the preview URL. Admin is at `/admin`, with the `ADMIN_USERNAME` / `ADMIN_PASSWORD` you set in `backend/.env`.
-
----
-
-## Option B — Run locally (your own machine)
+## Run locally
 
 ### 1. Prerequisites
 - **Node.js 20+** and **Yarn 1.x** (`npm i -g yarn` once, then use only yarn)
@@ -109,7 +78,7 @@ Create/edit `backend/.env`:
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="wayfind"
 CORS_ORIGINS="http://localhost:3000"
-ANTHROPIC_API_KEY=<your Anthropic API key>
+# ANTHROPIC_API_KEY=<your Anthropic API key>   (not used while the AI search is off)
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<a long random secret, e.g. from `openssl rand -base64 24`>
 ```
@@ -136,8 +105,6 @@ Set `frontend/.env`:
 REACT_APP_BACKEND_URL=http://localhost:8001
 ```
 
-> Remove or ignore the `WDS_SOCKET_PORT=443` line locally. It's only for the Studio HTTPS proxy and can break hot reload on localhost.
-
 Start it:
 
 ```bash
@@ -154,21 +121,6 @@ cd backend && yarn build && yarn start   # compiles to backend/dist and runs it 
 ```
 
 Put both behind one domain with a reverse proxy routing `/api/*` → backend:8001 and everything else → the static build. Otherwise set `REACT_APP_BACKEND_URL` to the API's public URL before `yarn build`.
-
----
-
-## Local vs Studio at a glance
-
-| | Emergent Studio | Local |
-|---|---|---|
-| Start services | Already running (supervisor) | `yarn dev` (backend) + `yarn start` (frontend) |
-| Restart | `sudo supervisorctl restart backend/frontend` | Ctrl+C and re-run (`yarn dev` restarts on changes) |
-| MongoDB | Pre-installed, `mongodb://localhost:27017` | Install yourself / Docker / Atlas |
-| `REACT_APP_BACKEND_URL` | Public preview URL | `http://localhost:8001` |
-| `/api` routing | Kubernetes ingress | Direct to port 8001 (CORS enabled) |
-| Backend deps | `cd backend && yarn install` | `cd backend && yarn install` |
-| LLM key | Add `ANTHROPIC_API_KEY` to `backend/.env` | Add `ANTHROPIC_API_KEY` to `backend/.env` |
-| Logs | `/var/log/supervisor/*.log` | Your terminal |
 
 ---
 
@@ -196,7 +148,7 @@ Put both behind one domain with a reverse proxy routing `/api/*` → backend:800
 - **Visas:** `backend/src/visas.ts` holds entry rules for Indian passport holders for each country with international trips: visa type, stay, cost, how to apply, documents and official links. `DEST_COUNTRIES` maps destinations to countries. It feeds the `/visas` page and the visa section on international trip pages. It is hand-written and rules change often, so re-check it every few months and update `VISAS_CHECKED`, which the page shows. A destination with no countries mapped shows no visa section.
 - **What is shown for imported trips:** title, photo, dates, listed price, seats (where published), and the operator's own inclusion/exclusion lists. The only amount ever added to a listed price is 5% GST when the operator says GST is extra. getPackd's own ratings and reviews, group make-up and verification are left empty (Google and Tripadvisor ratings are shown separately, above).
 - **Admin:** `/admin` → log in → add operators, trips (plus first departure) and departures, verify operators, view leads and operator signups.
-- **Run backend tests:** start the backend, then `cd backend && REACT_APP_BACKEND_URL=http://localhost:8001 yarn test`. Without that variable, the tests hit the Studio preview URL.
+- **Run backend tests:** start the backend, then `cd backend && REACT_APP_BACKEND_URL=http://localhost:8001 yarn test`. Without that variable, the tests use `http://localhost:8001`.
 - **Key API endpoints:** `GET /api/search?...` (all filters, comma-separated multi values), `GET /api/home`, `GET /api/meta`, `GET /api/trips/{id}`, `GET /api/operators/{id}`, `GET /api/compare?deps=a,b`, `POST /api/leads`, `POST /api/alerts`, `POST /api/shortlists`, `POST /api/nl-search`.
 
 ## Troubleshooting
@@ -205,6 +157,5 @@ Put both behind one domain with a reverse proxy routing `/api/*` → backend:800
 |---|---|
 | Frontend shows no trips / network errors | Check `REACT_APP_BACKEND_URL` (no trailing `/api`), restart the frontend after editing `.env` |
 | `Missing required environment variable: MONGO_URL` on backend start | `backend/.env` missing or not in the `backend/` folder |
-| ✨ AI search returns an error | `ANTHROPIC_API_KEY` missing/invalid, or the account is out of credit |
 | CORS error locally | Set `CORS_ORIGINS="http://localhost:3000"` (or `*`) and restart the backend |
 | Globe/map not drawing | Needs internet access to load `world-atlas` from jsDelivr CDN |

@@ -2,7 +2,8 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import Anthropic from "@anthropic-ai/sdk";
+// AI search is switched off for now (see "plain-words search" below)
+// import Anthropic from "@anthropic-ai/sdk";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type NextFunction, type Request, type Response } from "express";
@@ -494,6 +495,22 @@ api.post("/operator-signups", limit("operator-signups", 20, HOUR), async (req, r
   res.json({ ok: true });
 });
 
+// ---------- plain-words search ----------
+// The AI (Claude) version is switched off for now, along with ANTHROPIC_API_KEY. The endpoint still answers, using the
+// search engine's own reading of the sentence. The button for it is hidden on the site (HIDDEN.features in
+// frontend/src/lib/constants.js). To switch the AI back on: uncomment the import at the top and the block below,
+// delete the short endpoint under it, and set ANTHROPIC_API_KEY.
+const NLIn = z.object({ text: z.string() });
+
+api.post("/nl-search", limit("nl-search", 60, HOUR), async (req, res) => {
+  const body = parseBody(NLIn, req);
+  const read = se.interpret(body.text.slice(0, 400));
+  if (!read) throw new HttpError(422, "Couldn't read that. Try the search filters instead.");
+  res.json({ params: read.params, summary: read.summary });
+});
+
+/* AI version, switched off:
+
 const NL_SYSTEM = `You convert a traveller's free-text request into JSON search filters for an Indian group-trip marketplace.
 Today is ${new Date().toISOString().slice(0, 10)}. Departures run from today to about eight months ahead. Prices are INR.
 Return ONLY a JSON object using any of these keys (omit unknown):
@@ -512,8 +529,6 @@ visa_easy: "1". seats: integer. age: comma list from 18-25,25-35,35-45,45-60,60+
 Also add "summary": a short human-readable sentence of what you understood.`;
 const NL_KEYS = new Set(["q", "start", "end", "flex", "max_price", "min_price", "as", "gender", "dur", "style", "pace", "difficulty", "dtype",
                          "climate", "stay", "diet", "trust", "visa_easy", "seats", "age"]);
-
-const NLIn = z.object({ text: z.string() });
 
 api.post("/nl-search", limit("nl-search", 60, HOUR), async (req, res) => {
   const body = parseBody(NLIn, req);
@@ -546,6 +561,7 @@ api.post("/nl-search", limit("nl-search", 60, HOUR), async (req, res) => {
   if (params.start && !("flex" in params)) params.flex = "0";
   res.json({ params, summary: data.summary ?? "" });
 });
+*/
 
 // ---------- traveller accounts (optional) ----------
 // An account only keeps your shortlist (hearts) on the server, so it follows you to other devices. Nothing on the site

@@ -1,5 +1,5 @@
 {
- "fetched_at": "2026-11-13T17:07:07.650Z",
+ "fetched_at": "2026-11-23T13:20:48.507Z",
  "source": "instagram-api",
  "accounts": {
   "on-his-own-trip": {
@@ -588,212 +588,212 @@
   {
    "operator_id": "on-his-own-trip",
    "handle": "@onhisowntrip",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "one-in-the-orange-jacket",
    "handle": "@oneintheorangejacket",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "part-time-traveller",
    "handle": "@parttimetraveller.co",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "migrant-musings",
    "handle": "@migrantmusings",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "alohomora-adventures",
    "handle": "@alohomora_adventures",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "metanoia-expeditions",
    "handle": "@metanoiaexpeditions",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "justwravel",
    "handle": "@justwravel",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "wanderon",
    "handle": "@wander.on",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "capture-a-trip",
    "handle": "@capture.a.trip",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "backpackclan",
    "handle": "@backpackclantours",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "tag-along-backpackers",
    "handle": "@tagalonghostels",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "bhatakna-tours-travels",
    "handle": "@bhatakna",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "chindi-safar",
    "handle": "@chindisafar",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "when-in-city",
    "handle": "@whenincity",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "white-collar-hippie",
    "handle": "@whitecollarhippie",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "spiti-united",
    "handle": "@thespitiunited",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "the-backpacker-co",
    "handle": "@thebackpackerco",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "tripper-trails",
    "handle": "@trippertrails",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "the-wanderers",
    "handle": "@wanderersonthego",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "ant-on-the-globe",
    "handle": "@antontheglobe",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "adventures-overland",
    "handle": "@adventuresoverland",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "the-land-of-wanderlust",
    "handle": "@thelandofwanderlust",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "solo-travel-india",
    "handle": "@solotravelindia",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "breakfree-journeys",
    "handle": "@breakfreeadventures",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "base-camp-adventures",
    "handle": "@base.camp.adventure",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "travel-tribes",
    "handle": "@traveltribes.in",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "firgun-travels",
    "handle": "@firguntravels",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "sanchari-travels",
    "handle": "@sancharitravels_",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "bucketlist",
    "handle": "@bucketlist.to",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "boketto-travels",
    "handle": "@bokettotravels",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "offline-by-happy-hour",
    "handle": "@offlinebyhappyhour",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "trek-the-himalayas",
    "handle": "@trekthehimalayas",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "indiahikes",
    "handle": "@indiahikes",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "trekatribe",
    "handle": "@trekatribe",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "cliffhangers-india",
    "handle": "@cliffhangers.india",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "plan-the-unplanned",
    "handle": "@plantheunplanned",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "bikat-adventures",
    "handle": "@bikatadventures",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "himalayan-hikers",
    "handle": "@himalayan_hikers",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "mapping-the-himalayas",
    "handle": "@mappingthehimalayas",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "trekup-india",
    "handle": "@trekupindia",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "trekkers-of-india",
    "handle": "@trekkersofindia",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "hikerwolf",
    "handle": "@hikerwolf",
-   "reason": "fetch failed"
+   "reason": "API access blocked."
   },
   {
    "operator_id": "treks-and-trails",

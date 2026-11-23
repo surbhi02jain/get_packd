@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-const BASE = (process.env.REACT_APP_BACKEND_URL ?? "https://true-price-travels.preview.emergentagent.com").replace(/\/+$/, "");
+const BASE = (process.env.REACT_APP_BACKEND_URL ?? "http://localhost:8001").replace(/\/+$/, "");
 const API = `${BASE}/api`;
 
 interface CallOptions {
