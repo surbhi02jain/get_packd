@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { shortMoney } from "@/lib/format";
 import { useApp } from "@/context/AppState";
@@ -10,7 +12,29 @@ import TripPhoto from "./TripPhoto";
 // The map beside the results, as on Airbnb: a white price pill on each destination, black for the one whose trip is
 // under the pointer. Where pills would overlap, the busier place keeps its pill and the others shrink to dots until you
 // zoom in. Any of them opens a little card for that place; its button narrows the results to it.
-// Tiles are Stadia Maps' Alidade Smooth (OpenStreetMap data): free on localhost, an account and key needed once live.
+// The base map is OpenFreeMap's Positron (OpenStreetMap data): free, no account or key, no usage limit, commercial use
+// allowed. It is drawn by MapLibre inside the Leaflet map, so the pins and popups below stay plain Leaflet.
+const BASE_STYLE = "https://tiles.openfreemap.org/styles/positron";
+const BASE_CREDIT = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+// MapLibre needs WebGL. The rare browser without it gets OpenStreetMap's own (busier) tiles instead of a blank map.
+const hasWebGL = (() => {
+  try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; }
+})();
+
+function VectorBase() {
+  const map = useMap();
+  useEffect(() => {
+    const layer = maplibreGL({ style: BASE_STYLE, attribution: BASE_CREDIT }).addTo(map);
+    return () => { map.removeLayer(layer); };
+  }, [map]);
+  return null;
+}
+
+const BaseMap = () => hasWebGL ? <VectorBase /> : (
+  <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
+    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
+);
 
 const pill = (text, on) => L.divIcon({ className: "", iconSize: null, html: `<span class="air-pin${on ? " is-on" : ""}">${text}</span>` });
 const dot = L.divIcon({ className: "", iconSize: null, html: '<span class="air-dot"></span>' });
@@ -116,8 +140,7 @@ export default function PriceMap({ points = [], active, onPick, className = "", 
         </div>
       )}
       <MapContainer center={[22, 80]} zoom={4} minZoom={2} zoomControl={false} scrollWheelZoom worldCopyJump className="h-full w-full bg-[#f2efe9]">
-        <TileLayer url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png" maxZoom={19}
-          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+        <BaseMap />
         <ZoomControl position="topright" />
         <KeepSized />
         <Fit points={pins} />
