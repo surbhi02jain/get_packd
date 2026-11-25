@@ -23,7 +23,7 @@ const AGE_BANDS = ["18-25", "25-35", "35-45", "45-60", "60+"];
 const CLIMATES = ["snow", "beach", "mountains", "desert", "jungle", "city"];
 const DURS = ["2-5", "6-9", "10-14", "15+"];
 export const STYLES = ["hiking", "offbeat", "luxury", "backpacking", "culture_food", "beaches", "wildlife", "spiritual",
-                       "roadtrip", "photography", "party", "workation", "winter"];
+                       "roadtrip", "photography", "party", "workation", "winter", "adventure"];
 const OP_CATS = ["community", "trekking", "scuba", "women_specialist", "hostel", "aggregator", "legacy", "seniors", "luxury"];
 const PERSONA_LABEL: Record<string, string> = {
   solo_woman: "Great for solo women", solo: "Great for solo travellers", friends: "Great for friend groups",
@@ -31,7 +31,7 @@ const PERSONA_LABEL: Record<string, string> = {
 };
 const GROUP_LABEL: Record<string, string> = {
   audience: "audience", as: "travelling-as", gender: "group makeup", age: "age band", size: "group size",
-  solo_many: "many solo travellers", dtype: "domestic/international", country: "country", climate: "climate",
+  solo_many: "many solo travellers", dtype: "domestic/international", place: "place", country: "country", climate: "climate",
   dur: "duration", style: "trip style", pace: "pace", difficulty: "difficulty", stay: "stay type",
   private_room: "private room", diet: "food", incl: "inclusions", trust: "safety & trust",
   visa_easy: "visa-easy", op_type: "operator type", operator: "operator",
@@ -74,6 +74,10 @@ export interface Item {
   starts_from_how: "included" | "title" | null;
   price: number;
   true_price: number;
+  /** The operator gives only a starting price for this date ("From ₹44,444"); the date itself can cost more. */
+  price_from: boolean;
+  /** The operator lists GST (5%) as extra, on top of the price: "₹9,400 + 5% GST". */
+  gst_extra: boolean;
   breakdown: BreakdownLine[];
   flights_est: number;
   seats_total: number | null;
@@ -112,7 +116,7 @@ export interface Item {
 }
 
 const CARD_KEYS = ["dep_id", "trip_id", "title", "destination", "dest_slug", "countries", "dtype", "image", "url", "source", "duration",
-                   "meeting_point", "starts_from", "starts_from_how", "price", "true_price", "breakdown", "flights_est", "seats_total", "seats_left",
+                   "meeting_point", "starts_from", "starts_from_how", "price", "true_price", "price_from", "gst_extra", "breakdown", "flights_est", "seats_total", "seats_left",
                    "status", "min_group", "max_group", "age_band", "age_median", "age_range", "gender_split",
                    "gender_policy", "solo_ratio", "booked", "categories", "rating", "review_count",
                    "last_verified_days", "op", "women_leader", "stay_tier", "pace", "difficulty", "season"] as const;
@@ -170,19 +174,15 @@ export function upcoming(): Item[] {
 }
 
 /**
- * Imported trips: only what the operator states. Each checklist item is "included", "not_included" or "unknown",
- * and the only amount ever added is 5% GST when the operator says GST is extra.
+ * Imported trips: only what the operator states, and the price exactly as they list it. Nothing is added: when GST
+ * is extra the site writes the price the way the operator does ("₹9,400 + 5% GST"), from the card's gst_extra.
  */
 function statedPrice(trip: Trip, listed: number): [number, BreakdownLine[]] {
-  let extra = 0;
   const lines = CHECKLIST.map(([key, label]) => {
     const v = lookup<boolean | "partial" | null>(trip.inclusions, key, null);
-    let amount = 0;
-    if (key === "taxes" && v === false) amount = Math.round(listed * 0.05);
-    extra += amount;
-    return { key, label, status: v === null ? "unknown" : v ? "included" : amount ? "estimated" : "not_included", amount };
+    return { key, label, status: v === null ? "unknown" : v ? "included" : "not_included", amount: 0 };
   });
-  return [listed + extra, lines];
+  return [listed, lines];
 }
 
 export function truePrice(trip: Trip, listed: number): [number, BreakdownLine[]] {
@@ -267,6 +267,8 @@ const FACETS: Record<string, ["or" | "and" | "bool", string[] | null, Pred]> = {
   size: ["or", ["small", "medium", "large"], (i, v) => size(i) === v],
   solo_many: ["bool", ["1"], (i) => (i.solo_ratio ?? 0) >= 0.5],
   dtype: ["or", ["domestic", "international"], (i, v) => i.dtype === v],
+  // a destination in India (Spiti, Kerala…), listed under Domestic in the filters
+  place: ["or", null, (i, v) => i.dtype === "domestic" && i.dest_slug === v],
   country: ["or", null, (i, v) => i.countries.includes(v)],
   climate: ["or", CLIMATES, (i, v) => i.climate.includes(v)],
   dur: ["or", DURS, (i, v) => dur(i) === v],
@@ -322,7 +324,8 @@ export function build(operators: Operator[], trips: Trip[], departures: Departur
       // trips imported before imageUrl existed are repaired here too, without a fresh import
       image: imageUrl(t.image, t.url) || dest?.image || null, url: t.url ?? null, source: t.source ?? null, start, end, duration: spanDays > 0 ? spanDays : t.duration_days, meeting_point: t.meeting_point,
       starts_from: t.starts_from ?? null, starts_from_how: t.starts_from_how ?? null,
-      price: d.price_inr, true_price: tp, breakdown: lines,
+      price: d.price_inr, true_price: tp, price_from: d.price_from ?? false,
+      gst_extra: t.source === "import" && lookup<boolean | "partial" | null>(t.inclusions, "taxes", null) === false, breakdown: lines,
       flights_est: !intl || t.source === "import" || lookup(t.inclusions, "flights_included", false) ? 0 : (dest?.flight_est ?? 0),
       // "Filling fast" is only said of seats read recently; an operator's site we couldn't read for a week isn't news
       seats_total: d.seats_total, seats_left: d.seats_left, status: d.status === "filling" && now - lv > STALE_DAYS * 86_400_000 ? "open" : d.status,
@@ -527,13 +530,18 @@ export function fitScore(i: Item, personas: string[], quiz: Record<string, strin
   return [best, label];
 }
 
+/**
+ * "Best match": how soon the trip leaves and how big the operator's Instagram following is, half each. Nearness halves
+ * every three weeks or so (leaving today 1, in 3 weeks 0.5, in 2 months about 0.26); popularity runs on a log scale
+ * (1k followers 0.5, 30k about 0.75, 1M 1), with operators whose count isn't known treated as about 3k. The Fit score
+ * still multiplies in when someone has taken the quiz.
+ */
 function bestScore(i: Item, fit: number | null): number {
-  const trustF = lookup({ verified: 1, pending: 0.82, listed: 0.82, unverified: 0.65 }, i.op.verified_status, 0.65);
-  const fresh = Math.max(0.6, 1 - i.last_verified_days / 45);
-  const review = i.rating === null ? 0.8 : Math.max(0.5, Math.min(1, 0.6 + (0.4 * (i.rating - 3.5)) / 1.5));
-  const span = STATE.pmax - STATE.pmin + 1;
-  const priceF = 1 - (0.35 * (i.true_price - STATE.pmin)) / span;
-  let s = ((fit ?? 72) / 100) * trustF * fresh * review * priceF;
+  const days = Math.max(0, (Date.parse(`${i.start}T00:00:00Z`) - Date.parse(`${today()}T00:00:00Z`)) / 86_400_000);
+  const near = 1 / (1 + days / 21);
+  const followers = i.op.instagram_followers;
+  const popular = Math.min(1, Math.max(0, Math.log10(followers && followers > 0 ? followers : 3000) / 6));
+  let s = (0.5 * near + 0.5 * popular) * (fit !== null ? fit / 100 : 1);
   if (i.status === "cancelled") s *= 0.05;
   return s;
 }
@@ -553,6 +561,8 @@ function sortKey(sort: string, useTrue: boolean): (x: Scored) => (number | strin
       case "cheapest": return [c, pr];
       case "priciest": return [c, -pr];
       case "soonest": return [c, i.start, pr];
+      // biggest Instagram following first; operators whose count isn't known go last, then the soonest date
+      case "popular": return [c, -(i.op.instagram_followers ?? -1), i.start, pr];
       case "shortest": return [c, i.duration, pr];
       case "rated": return [c, -(i.rating ?? 0), -i.review_count];
       case "verified": return [c, lookup({ verified: 0, pending: 1, unverified: 2 }, i.op.verified_status, 3), i.last_verified_days];
@@ -760,6 +770,10 @@ function runSearch(params: Params, offset = 0, limit = 30) {
       for (const i of subset) {
         if (key === "country") {
           for (const c of i.countries) vals.set(c, (vals.get(c) ?? 0) + 1);
+        } else if (key === "place") {
+          if (i.dtype !== "domestic" || !i.dest_slug) continue;
+          vals.set(i.dest_slug, (vals.get(i.dest_slug) ?? 0) + 1);
+          names.set(i.dest_slug, i.destination || i.dest_slug);
         } else {
           vals.set(i.op.id, (vals.get(i.op.id) ?? 0) + 1);
           names.set(i.op.id, i.op.name);
@@ -923,4 +937,23 @@ export function itemsForTrip(tripId: string): Item[] {
 /** Any departure, past ones included, so a saved or shared link to one still opens. */
 export function itemByDep(depId: string): Item | undefined {
   return STATE.items.find((i) => i.dep_id === depId);
+}
+
+/**
+ * The departure a saved id (a heart, a shared shortlist) stands for today. A trip's id is its operator, its title and
+ * a code from its page's address (seedData.ts), so when the operator renames the trip, or drops the date, the old id
+ * no longer exists although the trip does. Then it is the same trip (same operator and page) on the same date, or its
+ * next date, or its last one. Undefined when the trip itself is gone.
+ */
+export function findDep(depId: string): Item | undefined {
+  const exact = itemByDep(depId);
+  if (exact) return exact;
+  const m = /^(.+)-(\d{4}-\d{2}-\d{2})$/.exec(depId);
+  if (!m) return undefined;
+  const [, tripId, date] = m;
+  const code = /-([0-9a-f]{6})$/.exec(tripId)?.[1];
+  const same = STATE.items.filter((i) => i.trip_id === tripId || (code && i.trip_id.endsWith(`-${code}`) && tripId.startsWith(`${i.op.id}-`)));
+  if (!same.length) return undefined;
+  const byDate = [...same].sort((a, b) => a.start.localeCompare(b.start));
+  return byDate.find((i) => i.start === date) ?? byDate.find((i) => i.start >= today()) ?? byDate[byDate.length - 1];
 }

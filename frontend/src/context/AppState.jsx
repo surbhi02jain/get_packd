@@ -63,14 +63,23 @@ export function AppStateProvider({ children }) {
   }, []);
 
   const toggleHeart = useCallback((id) => setHearts((h) => (h.includes(id) ? h.filter((x) => x !== id) : [...h, id])), []);
+  /**
+   * What the server found when it looked up the saved departures: `moved` (old id → the id it has now, after the trip
+   * was renamed or its date dropped) and `missing` (trips no longer listed). The shortlist then keeps only what it can
+   * show, so the heart's count matches the page.
+   */
+  const settleHearts = useCallback((moved = {}, missing = []) => setHearts((h) => {
+    const next = [...new Set(h.filter((id) => !missing.includes(id)).map((id) => moved[id] ?? id))];
+    return same(next, h) ? h : next;
+  }), []);
   const toggleCompare = useCallback((card) => setCompare((c) => {
     if (c.find((x) => x.dep_id === card.dep_id)) return c.filter((x) => x.dep_id !== card.dep_id);
-    if (c.length >= 4) { toast.error("You can compare up to 4 departures"); return c; }
+    if (c.length >= 4) { toast.error("You can compare up to 4 trips"); return c; }
     return [...c, { dep_id: card.dep_id, title: card.title, image: card.image, dest_slug: card.dest_slug, true_price: card.true_price, dtype: card.dtype }];
   }), []);
 
   return (
-    <Ctx.Provider value={{ hearts, toggleHeart, compare, toggleCompare, setCompare, currency, setCurrency, dark, setDark, quiz, setQuiz, user, checking, signIn, signOut }}>
+    <Ctx.Provider value={{ hearts, toggleHeart, settleHearts, compare, toggleCompare, setCompare, currency, setCurrency, dark, setDark, quiz, setQuiz, user, checking, signIn, signOut }}>
       {children}
     </Ctx.Provider>
   );

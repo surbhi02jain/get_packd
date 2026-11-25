@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, CalendarDays, Check, Clock, ExternalLink, MapPin, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarDays, Check, ChevronDown, Clock, ExternalLink, MapPin, Users, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import TripPhoto from "@/components/TripPhoto";
@@ -33,6 +33,52 @@ function Heading({ children, aside }) {
 
 const Section = ({ children, testId }) => <section className="border-t border-[#e7dece] py-8" data-testid={testId}>{children}</section>;
 
+/**
+ * The day-by-day plan exactly as the operator's page gives it. Each day opens to its full text, and long plans show their
+ * first days until "Show all" is pressed.
+ */
+function DayByDay({ days, operator }) {
+  const [open, setOpen] = useState(() => new Set([1]));
+  const [all, setAll] = useState(days.length <= 5);
+  // a day the operator gives no heading leads with its first sentence
+  const shown = (all ? days : days.slice(0, 4)).map((d) => {
+    if (d.title) return d;
+    const m = /^(.{8,110}?[.!?])\s+(.+)$/s.exec(d.description);
+    return m ? { ...d, title: m[1], description: m[2] } : { ...d, title: d.description, description: "" };
+  });
+  const toggle = (n) => setOpen((s) => { const next = new Set(s); next.has(n) ? next.delete(n) : next.add(n); return next; });
+  return (
+    <Section testId="trip-itinerary">
+      <Heading aside={`in ${operator}'s words`}>Day by day</Heading>
+      <ol className="mt-5 border-l border-[#e7dece]">
+        {shown.map((d) => {
+          const on = open.has(d.day);
+          return (
+            <li key={d.day} className="relative pb-1 pl-6">
+              <span aria-hidden className={`absolute -left-[5px] top-[15px] h-[9px] w-[9px] rounded-full border-[1.5px] ${on ? "border-coral bg-coral" : "border-[#b9ad97] bg-[#f8f4ec]"}`} />
+              {d.description ? (
+                <button type="button" onClick={() => toggle(d.day)} aria-expanded={on} data-testid={`trip-day-${d.day}`} className="group flex w-full items-baseline gap-3 py-2.5 text-left">
+                  <span className="w-12 shrink-0 text-[11px] font-medium uppercase tracking-[.1em] text-[#5f656b]">Day {d.day}</span>
+                  <span className="flex-1 text-[16px] text-[#16181b] group-hover:text-coral">{d.title}</span>
+                  <ChevronDown size={16} className={`shrink-0 self-center text-[#5f656b] transition-transform ${on ? "rotate-180" : ""}`} />
+                </button>
+              ) : (
+                <p className="flex items-baseline gap-3 py-2.5" data-testid={`trip-day-${d.day}`}>
+                  <span className="w-12 shrink-0 text-[11px] font-medium uppercase tracking-[.1em] text-[#5f656b]">Day {d.day}</span>
+                  <span className="flex-1 text-[16px] text-[#16181b]">{d.title}</span>
+                </p>
+              )}
+              {on && d.description && <p className="whitespace-pre-line pb-4 text-[15px] leading-relaxed text-[#5b6066] sm:pl-[60px]">{d.description}</p>}
+            </li>
+          );
+        })}
+      </ol>
+      {!all && <button type="button" onClick={() => setAll(true)} data-testid="trip-itinerary-all" className="mt-3 pl-6 text-sm font-medium text-coral hover:underline">Show all {days.length} days</button>}
+      <p className="mt-4 text-sm text-[#5b6066]">Plans can change. Check the day-by-day with {operator} before you book.</p>
+    </Section>
+  );
+}
+
 const seatsNote = (d) => (d.status === "filling" ? "Filling fast" : d.seats_left != null && d.seats_left <= 8 ? `${d.seats_left} seats left` : null);
 
 export default function TripDetail() {
@@ -58,13 +104,14 @@ export default function TripDetail() {
   // when the operator gives no lists, the checklist we read from their page (meals, stays, transport...), known lines only
   const known = (sel?.breakdown || []).filter((l) => l.status && l.status !== "unknown");
   const womenOnly = trip.gender_policy === "women_only";
-  const price = sel ? money(sel.true_price, currency, intl) : null;
+  const price = sel ? `${sel.price_from ? "from " : ""}${money(sel.true_price, currency, intl)}` : null;
   // someone leaving for the operator's site: the click the analytics counts per operator and trip
   const booked = (where) => () => {
     setOff(true);
     track("book_click", { op: op.id, trip: trip.id, dep: sel?.dep_id ?? null, price: sel?.true_price ?? null, where });
   };
-  const gstAdded = sel && sel.true_price > sel.price ? sel.true_price - sel.price : 0;
+  // the operator lists GST as extra: the price is written as they write it, "₹9,400 + 5% GST"
+  const gstExtra = !!sel?.gst_extra;
   const stale = sel && sel.last_verified_days > STALE_DAYS;
   const readWhen = sel ? (sel.last_verified_days === 0 ? "today" : `${sel.last_verified_days} days ago`) : "";
   // known checklist lines, for trips whose operator gives no lists: what's included, and what isn't (or costs extra)
@@ -83,7 +130,7 @@ export default function TripDetail() {
 
   const facts = [
     [Clock, `${days} ${days === 1 ? "day" : "days"}`],
-    trip.max_group ? [Users, `Groups of up to ${trip.max_group}`] : null,
+    trip.max_group ? [Users, trip.min_group ? `Groups of ${trip.min_group}–${trip.max_group}` : `Groups of up to ${trip.max_group}`] : null,
     [CalendarDays, `${deps.length} ${deps.length === 1 ? "date" : "dates"} to choose from`],
     [Users, womenOnly ? "Women-only group" : "Mixed group"],
   ].filter(Boolean);
@@ -107,7 +154,7 @@ export default function TripDetail() {
         <div className="relative mt-6 rotate-[-.6deg] rounded-[3px] bg-[#fffdf9] p-2.5 shadow-[0_2px_4px_rgba(60,45,20,.1),0_24px_40px_-24px_rgba(60,45,20,.4)]">
           <span aria-hidden className="absolute -top-3 left-10 z-10 h-6 w-24 rotate-[-4deg] bg-[#e9dfc6]/85" />
           <span aria-hidden className="absolute -top-3 right-10 z-10 h-6 w-24 rotate-[5deg] bg-[#e9dfc6]/85" />
-          <TripPhoto large src={trip.image} dest={trip.destination_slug} alt={trip.title} className="block aspect-[2/1] max-h-[520px] w-full rounded-[2px] object-cover" />
+          <TripPhoto large src={trip.image} dest={trip.destination_slug} seed={trip.id} alt={trip.title} className="block aspect-[2/1] max-h-[520px] w-full rounded-[2px] object-cover" />
           {sel && <div className="absolute right-6 top-6"><HeartButton id={sel.dep_id} /></div>}
         </div>
 
@@ -133,13 +180,15 @@ export default function TripDetail() {
                     <button key={d.dep_id} data-testid={`trip-dep-${d.dep_id}`} onClick={() => setSp({ dep: d.dep_id }, { replace: true })}
                       className={`rounded-xl border px-4 py-3 text-left transition-colors ${on ? "border-coral bg-coral/[.05] ring-1 ring-coral" : "border-[#e7dece] bg-[#fffdf9] hover:border-[#16181b]"}`}>
                       <p className="text-[15px] font-semibold text-[#16181b]">{fmtRange(d.start, d.end)}</p>
-                      <p className="text-sm text-[#5b6066]">{money(d.true_price, currency, intl)}</p>
+                      <p className="text-sm text-[#5b6066]">{d.price_from ? "from " : ""}{money(d.true_price, currency, intl)}{d.gst_extra ? " + GST" : ""}</p>
                       {note && <p className="mt-1 text-xs font-medium text-[#a3271f]">{note}</p>}
                     </button>
                   );
                 })}
               </div>
             </Section>
+
+            {trip.itinerary_days?.length > 0 && <DayByDay days={trip.itinerary_days} operator={op.name} />}
 
             {(included.length > 0 || excluded.length > 0 || known.length > 0) && (
               <Section testId="trip-inclusions">
@@ -155,8 +204,7 @@ export default function TripDetail() {
                     {knownOut.length > 0 && <div><p className="text-sm font-semibold text-[#16181b]">Not included</p><ul className="mt-2.5 space-y-2.5 text-[15px] text-[#5b6066]">{knownOut.map((l) => <li key={l.key} className="flex items-center gap-2.5">{lineIcon(l.status, 18)} {l.amount ? `${l.key === "taxes" ? "GST (5%)" : l.label}: + ${money(l.amount, currency, intl)} on top of the listed price` : l.label}</li>)}</ul></div>}
                   </div>
                 )}
-                {/* the operator says GST is extra; the price getPackd shows already has it added, so it isn't counted twice */}
-                {gstAdded > 0 && <p className="mt-5 text-sm text-[#5b6066]" data-testid="trip-gst-note">The price on getPackd already adds the 5% GST {op.name} charges: {money(sel.true_price, currency, intl)} rather than the listed {money(sel.price, currency, intl)}.</p>}
+                {gstExtra && <p className="mt-5 text-sm text-[#5b6066]" data-testid="trip-gst-note">{op.name} lists GST (5%) as extra, so the price above is shown as they write it: {money(sel.price, currency, intl)} + 5% GST.</p>}
               </Section>
             )}
 
@@ -214,7 +262,8 @@ export default function TripDetail() {
             <div className="sticky top-24 rounded-2xl bg-card p-6 shadow-lift" data-testid="trip-booking-panel">
               {sel && <>
                 <p className="text-[#16181b]"><span className="text-[26px] font-semibold">{price}</span> <span className="text-[#5b6066]">per person</span></p>
-                {sel.true_price !== sel.price && <p className="text-sm text-[#5b6066]">incl. 5% GST the operator adds</p>}
+                {gstExtra && <p className="text-sm text-[#5b6066]" data-testid="trip-price-gst">+ 5% GST, as {op.name} lists it</p>}
+                {sel.price_from && <p className="mt-1 text-sm text-[#5b6066]" data-testid="trip-price-from">{op.name} gives a starting price; this date can cost more on their site.</p>}
                 <div className="mt-5 rounded-xl border border-[#e7dece] px-4 py-3">
                   <p className="text-[11px] font-medium uppercase tracking-[.1em] text-[#5f656b]">Dates</p>
                   <p className="mt-0.5 text-[15px] font-semibold text-[#16181b]">{fmtRange(sel.start, sel.end)}</p>
@@ -243,10 +292,10 @@ export default function TripDetail() {
 
       {sel && (
         <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-[#e7dece] bg-card/95 p-3 backdrop-blur lg:hidden" data-testid="mobile-book-bar">
-          {/* the same notes as the price card on wide screens: per person, any GST added, no payment here, how fresh */}
+          {/* the same notes as the price card on wide screens: per person, any GST on top, no payment here, how fresh */}
           <div className="min-w-0 text-xs leading-snug text-[#5b6066]">
             <p><span className="text-lg font-semibold text-[#16181b]">{price}</span> per person</p>
-            <p>{fmtRange(sel.start, sel.end)}{gstAdded > 0 ? " · incl. 5% GST" : ""}</p>
+            <p>{fmtRange(sel.start, sel.end)}{gstExtra ? " · + 5% GST" : ""}</p>
             <p className={stale ? "text-[#a3271f]" : ""}>No payment here · read {readWhen}</p>
           </div>
           {opLink && <a href={opLink} target="_blank" rel="noreferrer" onClick={booked("phone_bar")} data-testid="mobile-operator-button"

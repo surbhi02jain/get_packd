@@ -41,7 +41,11 @@ interface ImportedTrip {
   exclusions: string[];
   gst_included: boolean | null;
   women_only: boolean;
-  departures: { start: string; end: string | null; price: number; seats_total: number | null; seats_left: number | null }[];
+  departures: { start: string; end: string | null; price: number; price_from?: boolean; seats_total: number | null; seats_left: number | null }[];
+  /** The day-by-day plan in the operator's words, when their page has one. */
+  itinerary?: { day: number; title: string; description: string }[];
+  /** The group size the trip's page states in words, when it does. */
+  group_size?: { min: number | null; max: number } | null;
   fetched_at?: string;
 }
 
@@ -69,30 +73,53 @@ export const instagramFetchedAt = () => readInstagram().fetched_at;
 
 /** Changes whenever the trips, follower counts or operator list change, which makes the server reseed its database. */
 // bump when loadSeed builds records differently, so a running database is rebuilt with the change
-const SEED_SHAPE = 2;
-export const seedVersion = () => `shape${SEED_SHAPE}-import-${fetchedAt()}-${readInstagram().fetched_at}-${readReviews().fetched_at}-${readFileSync(path.join(DATA_DIR, "operators.json")).length}`;
+const SEED_SHAPE = 3;
+// (the trips file's own fingerprint too, so a fix to the file without a new import, like a trip's photo, still reseeds)
+export const seedVersion = () => `shape${SEED_SHAPE}-import-${fetchedAt()}-${createHash("sha1").update(readFileSync(path.join(DATA_DIR, "trips.json"))).digest("hex").slice(0, 12)}-${readInstagram().fetched_at}-${readReviews().fetched_at}-${readFileSync(path.join(DATA_DIR, "operators.json")).length}`;
 
 export function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-// Trip styles are inferred from words in the operator's own title; nothing else about a trip is guessed.
+// Trip styles are read from the operator's own words: the trip's name, then its day headings. Nothing else about a
+// trip is guessed. A trip's type, first from words in its name...
 const STYLE_WORDS: [string, RegExp][] = [
-  ["hiking", /\b(trek|trekking|hike|hiking|summit|base camp|pass)\b/i],
+  // "pass" alone isn't here: a sightseeing tour drives over Dochula Pass without anyone trekking
+  ["hiking", /\b(trek|treks|trekking|hike|hiking|summit|base camp)\b/i],
   ["backpacking", /\bbackpack(ing|er)?\b/i],
-  ["roadtrip", /\b(road ?trip|bike|biking|motorcycle|circuit|expedition)\b/i],
-  ["beaches", /\b(beach|island|islands|coast|coastal|andaman|goa|bali|gokarna|maldives|phuket|krabi)\b/i],
+  ["roadtrip", /\b(road ?trip|bike|biking|motorcycle|expedition)\b/i],
+  ["beaches", /\b(beach|beaches|island|islands|coast|coastal|andaman|goa|bali|gokarna|maldives|phuket|krabi)\b/i],
   // "frozen" alone also appears in phrases like "frozen in time", so only a frozen river or lake counts
   ["winter", /\b(winter|snow|frozen (river|lake)|chadar|christmas|xmas|northern lights)\b/i],
-  ["party", /\b(new year|nye|party|festival|holi|sunburn|hornbill)\b/i],
-  ["spiritual", /\b(spiritual|temple|temples|yoga|retreat|dham|jyotirlinga|kedarnath|varanasi|wellness|pilgrim)\b/i],
-  ["wildlife", /\b(safari|wildlife|leopard|tiger|kaziranga|corbett|masai)\b/i],
+  ["party", /\b(new ?years?|nye|party|festival|holi|sunburn|hornbill)\b/i],
+  ["spiritual", /\b(spiritual|temple|temples|yoga|retreat|dham|jyotirlinga|kedarnath|varanasi|wellness|pilgrim(age)?|kailash|yatra)\b/i],
+  // Bhutan's Tiger's Nest is a monastery, not a tiger
+  ["wildlife", /\b(safari|wildlife|leopard|tiger(?![’']s nest)|kaziranga|corbett|masai)\b/i],
   ["culture_food", /\b(culture|cultural|heritage|food|ruins|ancient|royal)\b/i],
+  ["adventure", /\b(adventure|rafting|paraglid(e|ing)|scuba|bungee|skiing|zip ?line|skydiv(e|ing)|surfing|canyoning)\b/i],
   ["offbeat", /\boffbeat\b/i],
   ["workation", /\bworkation\b/i],
   ["luxury", /\b(luxury|luxe|premium)\b/i],
   ["photography", /\bphotograph(y|ic)\b/i],
 ];
+// ...then from what the operator's day headings say the days are spent doing
+const SAFARI = /\b(?<!desert |vin |vinpearl )safaris?\b/i; // a desert safari or a theme park's "safari" isn't wildlife
+const DAY_STYLES: [string, (heading: string) => boolean, (hits: number, days: number) => boolean][] = [
+  // a trekking trip spends a good share of its days trekking, not one hike on a sightseeing tour
+  ["hiking", (h) => /\b(trek|treks|trekking|hike|hiking)\b/i.test(h), (n, all) => n >= 2 && n * 3 >= all],
+  // the big activities only: a kayak on a bay cruise or a snorkelling morning doesn't make a trip an adventure
+  ["adventure", (h) => /\b(rafting|paraglid(e|ing)|scuba|bungee|skiing|zip ?line|skydiv(e|ing)|surfing|canyoning)\b/i.test(h), (n) => n >= 1],
+  ["spiritual", (h) => /\b(darshan|aarti|puja|pooja|dham|jyotirlinga|pilgrimage|meditation|parikrama|kora)\b/i.test(h), (n) => n >= 1],
+  ["wildlife", (h) => /\b(wildlife|national park|tiger reserve|sanctuary)\b/i.test(h)
+    || (SAFARI.test(h) && (!/\bjeep safari/i.test(h) || /\b(wild|park|tiger|leopard)/i.test(h))), (n) => n >= 1],
+  ["beaches", (h) => /\b(beach|beaches|island hopping)\b/i.test(h), (n) => n >= 2],
+];
+function stylesOf(title: string, days: { title?: string }[] = []): string[] {
+  const out = new Set(STYLE_WORDS.filter(([, words]) => words.test(title)).map(([style]) => style));
+  const heads = days.map((d) => d.title ?? "");
+  for (const [style, test, enough] of DAY_STYLES) if (enough(heads.filter(test).length, heads.length)) out.add(style);
+  return [...out];
+}
 
 // What the operator's inclusion list says about each item on the comparison checklist. Plurals count too:
 // "Accommodations on sharing basis" is the stay being included.
@@ -179,19 +206,19 @@ export function loadSeed(): { operators: Operator[]; trips: Trip[]; departures: 
       id, operator_id: t.operator_id, title: t.title, destination_slug: dest.slug,
       destinations: dest.places, country: dest.countries, domestic_or_international: dest.dtype,
       climate_tags: dest.climate, meeting_point: t.meeting_point ?? "", end_point: t.end_point ?? "", ...startsFrom(t.title, t.inclusions),
-      duration_days: duration, categories: STYLE_WORDS.filter(([, words]) => words.test(t.title)).map(([style]) => style),
+      duration_days: duration, categories: stylesOf(t.title, t.itinerary),
       audience_tags: t.women_only ? ["solo", "friends"] : ["solo", "friends", "couples"],
       pace: null, difficulty: null, stay_tier: null, room_sharing: "", private_room: false,
-      min_group: null, max_group: first?.seats_total ?? null, age_band: null, gender_policy: t.women_only ? "women_only" : "mixed",
+      min_group: t.group_size?.min ?? null, max_group: t.group_size?.max ?? null, age_band: null, gender_policy: t.women_only ? "women_only" : "mixed",
       kid_friendly: false, senior_friendly: false, medical_support: false,
       visa_required: intl && !dest.visa_easy, visa_easy: dest.visa_easy,
-      diet_options: [], itinerary_days: [], inclusions, inclusion_list: t.inclusions, exclusions: t.exclusions,
+      diet_options: [], itinerary_days: (t.itinerary ?? []).map((d) => ({ day: d.day, title: d.title, description: d.description, place: "", stay: null, meals: [] })), inclusions, inclusion_list: t.inclusions, exclusions: t.exclusions,
       cancellation_policy: "", leader: null, women_leader: false, image: siteImage(t) ? null : t.image, review_count: 0,
       sample: false, source: "import", url: t.url,
     });
     for (const d of t.departures) {
       departures.push({
-        id: `${id}-${d.start}`, trip_id: id, start_date: d.start, end_date: d.end ?? addDays(d.start, duration - 1), price_inr: d.price,
+        id: `${id}-${d.start}`, trip_id: id, start_date: d.start, end_date: d.end ?? addDays(d.start, duration - 1), price_inr: d.price, ...(d.price_from ? { price_from: true } : {}),
         seats_total: d.seats_total, seats_left: d.seats_left,
         status: d.seats_left !== null && d.seats_left <= 3 ? "filling" : "open", last_verified_at: t.fetched_at ?? IMPORT.fetched_at,
       });

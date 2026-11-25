@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 
 import { matchDestination } from "./destinations.js";
 import { imageUrl } from "./utils.js";
+import { settlePhotos } from "./tripPhotos.js";
+import { statedGroupSize, type GroupSize } from "./groupSize.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -36,8 +38,17 @@ export interface ImportedDeparture {
   start: string;
   end: string | null;
   price: number;
+  /** Only the operator's starting price is known for this date: their page says "From ₹X" and prices each date in the browser. */
+  price_from?: boolean;
   seats_total: number | null;
   seats_left: number | null;
+}
+
+/** One day of a trip's plan, in the operator's words. */
+export interface ImportedDay {
+  day: number;
+  title: string;
+  description: string;
 }
 
 export interface ImportedTrip {
@@ -55,6 +66,10 @@ export interface ImportedTrip {
   gst_included: boolean | null;
   women_only: boolean;
   departures: ImportedDeparture[];
+  /** The day-by-day plan from the trip's page, when it has one we can read. */
+  itinerary?: ImportedDay[];
+  /** The group size the trip's page states in words; a booking system's seat count is not one. */
+  group_size?: GroupSize | null;
   /** When this trip was last read from the operator's site. */
   fetched_at?: string;
 }
@@ -275,7 +290,16 @@ interface Source {
   maxPages?: number;
   /** Trips kept per run, for operators whose whole list should come in. */
   maxTrips?: number;
+  /**
+   * For readers of listing pages: a second look at a trip's own page, which can carry fuller facts than the list
+   * (each date's current price, the dates still on offer). Returns the trip as its page gives it, the several trips a
+   * hub page stands for, or null when the page no longer offers it.
+   */
+  detail?(trip: Draft, html: string): Promise<Draft | Draft[] | null> | Draft | Draft[] | null;
 }
+
+/** Wovoyage home-page cards by trip URL, filled by its discover(): women-only or open, and sold out or not. */
+const wovoyageCards = new Map<string, { women: boolean; sold: boolean }>();
 
 const slugOf = (url: string) => new URL(url).pathname.replace(/\/+$/, "").split("/").pop() ?? "";
 const visibleText = (html: string) => stripTags(html.replace(/<(script|style|noscript)[^>]*>[\s\S]*?<\/\1>/g, " "));
@@ -343,13 +367,25 @@ const SOURCES: Record<string, Source> = {
       const excl = text(itin.exclusions);
       const loc = trip.categoryAndLocation as Record<string, unknown> | undefined;
       const state = ((trip.loc as Record<string, Record<string, unknown>> | undefined)?.state?.name as string) ?? null;
+      // the base price is for the trip's default room sharing (marked isDefault in occupancyCharges, e.g. "doubleOccupancy").
+      // A date with special pricing lists one entry per room sharing and vehicle; the page shows discountedPrice
+      // (specialPrice struck through), so use the entry for the default sharing, else the cheapest one listed
+      const charges = objectsWithKey(data, "occupancyCharges")[0]?.occupancyCharges as Record<string, { isDefault?: boolean }> | undefined;
+      const sharing = Object.entries(charges ?? {}).find(([, c]) => c?.isDefault)?.[0].replace(/Occupancy$/, "") ?? "double";
+      const specialPrice = (list: unknown) => {
+        const offers = (Array.isArray(list) ? list : []) as Record<string, unknown>[];
+        const priced = (o: Record<string, unknown>) => num(o.discountedPrice) || num(o.specialPrice) || 0;
+        const pick = offers.filter((o) => o.occupancy === sharing).map(priced).filter(Boolean);
+        const all = pick.length ? pick : offers.map(priced).filter(Boolean);
+        return all.length ? Math.min(...all) : 0;
+      };
       return {
         url, title: String(trip.title), image: meta(html, "og:image"), duration_days: num(itin.duration),
         location: state, meeting_point: typeof loc?.location === "string" ? loc.location : null, end_point: null,
         inclusions: incl, exclusions: excl, gst_included: gstFrom(incl, excl),
         departures: (itin.batches as Record<string, unknown>[]).filter((b) => b.availability !== "Sold Out" && b.availability !== "Full").map((b) => {
-          const special = num((b.specialPricing as Record<string, unknown> | null)?.price);
-          return { start: iso(b.startDate)!, end: iso(b.endDate), price: special || price, seats_total: num(b.slots), seats_left: null };
+          // "slots" is the booking cap for the date (often 40-80), not a group size the page states, so it isn't kept
+          return { start: iso(b.startDate)!, end: iso(b.endDate), price: specialPrice(b.specialPricing) || price, seats_total: null, seats_left: null };
         }),
       };
     },
@@ -370,14 +406,29 @@ const SOURCES: Record<string, Source> = {
         url, title: `Zo Trip: ${title}`, image: meta(html, "og:image"), duration_days: days, location: null,
         meeting_point: (trip.pickup_location as string) ?? null, end_point: (trip.drop_location as string) ?? null,
         inclusions: [], exclusions: [], gst_included: null,
-        departures: (dates as string[]).map((d) => ({ start: d, end: days ? addDays(d, days - 1) : null, price, seats_total: null, seats_left: null })),
+        // the page states one starting price ("From ₹44,444 /person"); each date's own price (higher on peak dates) is
+        // loaded in the browser from a service that turns automated visitors away, so these dates show as "from"
+        departures: (dates as string[]).map((d) => ({ start: d, end: days ? addDays(d, days - 1) : null, price, price_from: true, seats_total: null, seats_left: null })),
       };
     },
   },
 
+  // Wovoyage runs women-only trips and open trips (anyone can join). Its home page labels each trip card
+  // (wo-tc--women / wo-tc--open) and marks sold-out ones; a trip with several dates lists them in the page's booking
+  // data, each date with its own type, price and sold-out flag. GST (5%) is added at checkout, listed under buyer_fees.
   wovoyage: {
-    womenOnly: true,
-    discover: async () => linkedUrls("https://www.wovoyage.com/", /^\/tour\/[a-z0-9-]+$/),
+    async discover() {
+      const html = (await fetchText("https://www.wovoyage.com/")) ?? "";
+      wovoyageCards.clear();
+      for (const card of html.split('<article class="tourCard').slice(1)) {
+        const body = card.split("</article>")[0];
+        const href = /href="(https:\/\/www\.wovoyage\.com\/tour\/[a-z0-9-]+)"/.exec(body)?.[1];
+        if (!href) continue;
+        const cls = /^[^"]*/.exec(body)?.[0] ?? "";
+        wovoyageCards.set(href, { women: /\bwo-tc--women\b/.test(cls), sold: /\bwo-tc--sold\b/.test(cls) || body.includes("wo-tc__cta--sold") });
+      }
+      return [...wovoyageCards.keys()];
+    },
     read(url, html) {
       const m = /bravo_booking_data\s*=\s*(\{[\s\S]*?\})\s*;?\s*\n?\s*bravo_booking_data\./.exec(html);
       let data: Record<string, unknown> | null = null;
@@ -386,15 +437,42 @@ const SOURCES: Record<string, Source> = {
       } catch {
         data = null;
       }
-      const start = iso(data?.start_date);
-      const rooms = ((data?.wo_rooms as Record<string, unknown>[]) ?? []).filter((r) => !r.sold_out).map((r) => num(r.price) ?? 0).filter((p) => p > 0);
       const title = (meta(html, "og:title") ?? "").split("|")[0].trim();
-      if (!data || !data.is_fixed_date || !start || !rooms.length || !title) return null;
+      if (!data || !title) return null;
+      const fees = (data.buyer_fees as Record<string, unknown>[]) ?? [];
+      const base = {
+        title, image: meta(html, "og:image"), location: null, meeting_point: null, end_point: null, inclusions: [], exclusions: [],
+        gst_included: fees.some((f) => /\bGST\b/i.test(String(f.name))) ? false : null,
+      };
+      const card = wovoyageCards.get(url);
+
+      // several dates: each one says whether it is women-only or open, so a trip with both becomes two trips here
+      const listed = ((data.departures as Record<string, unknown>[]) ?? []).filter((d) => !d.sold_out && iso(d.start_date) && num(d.price));
+      if (listed.length) {
+        const byType = new Map<boolean, ImportedDeparture[]>();
+        for (const d of listed) {
+          const women = d.type === "women_only";
+          const end = iso(d.end_date);
+          const deps = byType.get(women) ?? [];
+          deps.push({ start: iso(d.start_date)!, end: end ?? null, price: num(d.price)!, seats_total: num(d.max_guests), seats_left: null });
+          byType.set(women, deps);
+        }
+        const both = byType.size > 1;
+        return [...byType].map(([women, departures]) => ({
+          ...base, url: both ? `${url}#${women ? "women-only" : "open-trip"}` : url, women_only: women, departures,
+          duration_days: departures[0].end ? daysBetween(departures[0].start, departures[0].end) + 1 : null,
+        }));
+      }
+
+      // one fixed date: the home page card says whether it is women-only and whether it has sold out
+      const start = iso(data.start_date);
+      const rooms = ((data.wo_rooms as Record<string, unknown>[]) ?? []).filter((r) => !r.sold_out).map((r) => num(r.price) ?? 0).filter((p) => p > 0);
+      if (!data.is_fixed_date || !start || !rooms.length || card?.sold) return null;
       const end = /(\d{1,2}) ([A-Za-z]{3}) (\d{4})/.exec(String(data.end_date_html ?? ""));
       const endDate = end ? nextDate(Number(end[1]), end[2], Number(end[3])) : null;
       return {
-        url, title, image: meta(html, "og:image"), duration_days: endDate ? daysBetween(start, endDate) + 1 : durationFrom(stripTags(html).slice(0, 20_000)),
-        location: null, meeting_point: null, end_point: null, inclusions: [], exclusions: [], gst_included: null,
+        ...base, url, women_only: card ? card.women : WOMEN_ONLY.test(title),
+        duration_days: endDate ? daysBetween(start, endDate) + 1 : durationFrom(stripTags(html).slice(0, 20_000)),
         departures: [{ start, end: endDate, price: Math.min(...rooms), seats_total: num(data.max_guests), seats_left: null }],
       };
     },
@@ -433,7 +511,9 @@ const SOURCES: Record<string, Source> = {
       for (const row of html.split('<li class="wte-fsd__availability">').slice(1)) {
         const dates = [...row.matchAll(/wte-fsd__availability-bold-text">\s*([A-Za-z]+) (\d{1,2}), (\d{4})\s*</g)];
         const price = /sale-price-wrap">[\s\S]{0,200}?(?:&#8377;|₹)\s*([\d,]+)/.exec(row) ?? /(?:&#8377;|₹)\s*([\d,]+)/.exec(row);
-        if (dates.length < 1 || !price || !/>\s*Available\s*</.test(row)) continue;
+        // the row's status tag ("Guaranteed", "Filling Fast", "Sold Out"); every row also says "Available" as a seat label
+        const status = /wte-fsd__availability-label">\s*([^<]+?)\s*</.exec(row)?.[1] ?? "";
+        if (dates.length < 1 || !price || !/>\s*Available\s*</.test(row) || /sold out|closed|full|cancel/i.test(status)) continue;
         const start = nextDate(Number(dates[0][2]), dates[0][1], Number(dates[0][3]));
         const end = dates[1] ? nextDate(Number(dates[1][2]), dates[1][1], Number(dates[1][3])) : null;
         if (start) departures.push({ start, end, price: Number(price[1].replace(/,/g, "")), seats_total: null, seats_left: null });
@@ -532,9 +612,10 @@ const SOURCES: Record<string, Source> = {
         drafts.push({
           ...empty, url: `https://www.trekkersunited.com/tour/${head[2]}`, title: head[1], image: image ? `https://media.trekkersunited.com/${image[1]}` : null,
           duration_days: days, location: /destinationName:"([^"]+)"/.exec(part)?.[1] ?? null,
-          // prices are stored in paise
+          // prices are stored in paise; a date can be listed once per pickup city at different prices: the lowest is kept
           departures: [...part.slice(at, at + 4000).matchAll(/startDate:"(\d{4}-\d{2}-\d{2})[^"]*",price:(\d+)/g)]
-            .map((b) => ({ start: b[1], end: addDays(b[1], days - 1), price: Math.round(Number(b[2]) / 100), seats_total: seats ? Number(seats[1]) : null, seats_left: null })),
+            .map((b) => ({ start: b[1], end: addDays(b[1], days - 1), price: Math.round(Number(b[2]) / 100), seats_total: seats ? Number(seats[1]) : null, seats_left: null }))
+            .sort((a, b) => a.price - b.price),
         });
       }
       return drafts;
@@ -581,6 +662,46 @@ const SOURCES: Record<string, Source> = {
         });
       }
       return drafts;
+    },
+    // A listed trip can be a hub ("Vietnam") whose page shows several trips as cards: "7 NIGHTS / 8 DAYS", name, route,
+    // dates, "FROM ₹64,000", "View trip". Each trip's own page then prices each date: "28 Dec - 4 Jan ₹69,000 ₹71,000
+    // ₹73,000" (by room sharing; the lowest is the price).
+    async detail(trip, html) {
+      const lines = htmlLines(html);
+      const links = [...html.matchAll(/href="(https:\/\/www\.metanoiaexpeditions\.com\/[a-z0-9-]+)"[^>]*>(?:\s|<[^>]+>)*View trip/gi)].map((m) => m[1]);
+      const cards: Draft[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const n = /^(\d{1,2}) NIGHTS? \/ (\d{1,2}) DAYS?$/i.exec(lines[i]);
+        const at = n ? lines.slice(i + 1, i + 8).findIndex((l) => /^FROM ₹/i.test(l)) : -1;
+        if (!n || at < 1) continue;
+        const block = lines.slice(i + 1, i + 1 + at);
+        const days = Number(n[2]);
+        const price = num(lines[i + 1 + at].replace(/[^\d]/g, ""));
+        const starts = (block.at(-1) ?? "").split("|").map((d) => /^\s*(\d{1,2})\s+([A-Za-z]{3,})/.exec(d)).map((d) => (d ? nextDate(Number(d[1]), d[2]) : null)).filter((d): d is string => d !== null);
+        cards.push({ ...trip, url: links[cards.length] ?? "", title: block[0], duration_days: days,
+                     departures: price ? starts.map((start) => ({ start, end: addDays(start, days - 1), price, seats_total: null, seats_left: null })) : [] });
+      }
+      const trips = cards.length && cards.length === links.length ? cards : [trip];
+      for (const t of trips) {
+        const page = t.url === trip.url ? html : await fetchText(t.url);
+        if (!page) continue;
+        const own = htmlLines(page);
+        const byDate = new Map<string, number>();
+        own.forEach((line, i) => {
+          const d = /^(\d{1,2}) ([A-Za-z]{3,}) - \d{1,2} [A-Za-z]{3,}$/.exec(line);
+          const start = d && nextDate(Number(d[1]), d[2]);
+          if (!start) return;
+          const prices: number[] = [];
+          for (const next of own.slice(i + 1, i + 8)) {
+            if (/^Book by/i.test(next) || /^\d{1,2} [A-Za-z]{3,} - /.test(next)) break;
+            const p = /^₹\s?([\d,]+)$/.exec(next);
+            if (p) prices.push(Number(p[1].replace(/,/g, "")));
+          }
+          if (prices.length) byDate.set(start, Math.min(...prices));
+        });
+        t.departures = t.departures.map((d) => (byDate.has(d.start) ? { ...d, price: byDate.get(d.start)! } : d));
+      }
+      return trips;
     },
   },
 
@@ -661,6 +782,33 @@ const SOURCES: Record<string, Source> = {
       });
       return drafts;
     },
+    // The list gives only the lowest early-bird price. Each trip page prices every date in steps that rise as the
+    // trip fills: "Dec 19-27: INR 60k (until Oct 23), INR 63k (until Nov 19), INR 66k (until spots remain)". The step
+    // in force today is the price; a date whose last step has passed is no longer on sale.
+    detail(trip, html) {
+      const steps = new Map<string, number | null>();
+      // the date can sit on its own line ("Dec 19-27:") above its steps
+      const lines = htmlLines(html).map((l, i, all) => (/^[A-Za-z]{3,}\s+\d{1,2}\s*-\s*(?:[A-Za-z]{3,}\s+)?\d{1,2}\s*:$/.test(l) ? `${l} ${all[i + 1] ?? ""}` : l));
+      for (const line of lines) {
+        const head = /^([A-Za-z]{3,})\s+(\d{1,2})\s*-\s*(?:[A-Za-z]{3,}\s+)?\d{1,2}\s*:\s*(.+)$/.exec(line);
+        const start = head && nextDate(Number(head[2]), head[1]);
+        if (!head || !start) continue;
+        let price: number | null = null;
+        for (const st of head[3].matchAll(/(?:INR\s*)?(\d+(?:\.\d)?)k\s*\(until ([^)]+)\)/gi)) {
+          const until = /spots remain/i.test(st[2]) ? null : /([A-Za-z]{3,})\s+(\d{1,2})/.exec(st[2]);
+          // "until Oct 23" for a December trip: the last Oct 23 on or before the trip starts
+          let by = until ? nextDate(Number(until[2]), until[1], Number(start.slice(0, 4))) : null;
+          if (by && by > start) by = nextDate(Number(until![2]), until![1], Number(start.slice(0, 4)) - 1);
+          if (!until || (by && by >= TODAY)) {
+            price = Math.round(Number(st[1]) * 1000);
+            break;
+          }
+        }
+        steps.set(start, price);
+      }
+      if (!steps.size) return trip;
+      return { ...trip, departures: trip.departures.filter((d) => steps.get(d.start)).map((d) => ({ ...d, price: steps.get(d.start)! })) };
+    },
   },
 
   "veena-world": {
@@ -668,7 +816,8 @@ const SOURCES: Record<string, Source> = {
     read(_url, html) {
       // each package page carries its own tour and a few related ones, all with their departures
       return objectsWithKey(html, "departureDates").filter((t) => typeof t.productUrl === "string" && typeof t.title === "string" && Array.isArray(t.departureDates)).map((t) => ({
-        ...empty, url: new URL(t.productUrl as string, "https://www.veenaworld.com").href, title: String(t.title), image: typeof t.image === "string" ? t.image : null,
+        // every package page states "5% GST is applicable on given tour price" (in its terms, drawn in by the browser)
+        ...empty, gst_included: false, url: new URL(t.productUrl as string, "https://www.veenaworld.com").href, title: String(t.title), image: typeof t.image === "string" ? t.image : null,
         duration_days: num(t.days), location: [t.sectorName, t.title].filter((x) => typeof x === "string").join(" "),
         departures: (t.departureDates as Record<string, unknown>[]).filter((d) => d.vacancyStatus === "Open" && d.jlAvailable).map((d) => {
           // the "joining & leaving" price: the tour without flights from India, which is how every other trip here is priced
@@ -753,6 +902,17 @@ const SOURCES: Record<string, Source> = {
       }
       return [...byUrl.values()];
     },
+    // The trip's own page lists the dates still on offer (Available Dates: 11 Jan) and the price ("Starting from
+    // ₹93,900 (twin share)"). A listed date the page doesn't show is dropped: one card's link led to a page for
+    // another trip, with no dates at all.
+    detail(trip, html) {
+      const text = visibleText(html);
+      // each date is a radio button: <input name="departure-dates-header" value="DEP-2027-01-11">
+      const on = new Set([...html.matchAll(/value="DEP-(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]));
+      const price = num(/Starting from ₹\s?([\d,]+)/i.exec(text)?.[1]?.replace(/,/g, ""));
+      const departures = trip.departures.filter((d) => on.has(d.start)).map((d) => (price ? { ...d, price } : d));
+      return departures.length ? { ...trip, departures } : null;
+    },
   },
 
   "bhatakna-tours-travels": {
@@ -788,7 +948,9 @@ const SOURCES: Record<string, Source> = {
       } catch {
         dates = [];
       }
-      const price = num(/"@type":\s*"Offer",[\s\S]{0,300}?"price":\s*"?([\d.]+)/.exec(html)?.[1]);
+      // the fee on the booking panel ("Trek Fee & Dates ₹28000"); the page's schema.org offer can lag behind it
+      const panel = num(/Trek Fee (?:&|and) Dates\s*₹\s?([\d,]+)/i.exec(visibleText(html))?.[1]?.replace(/,/g, ""));
+      const price = panel ?? num(/"@type":\s*"Offer",[\s\S]{0,300}?"price":\s*"?([\d.]+)/.exec(html)?.[1]);
       // the page heading is the plain trek name; the meta title carries SEO wording and is missing on some pages
       const title = stripTags(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "");
       const days = durationFrom(visibleText(html).slice(0, 8000));
@@ -1019,13 +1181,14 @@ const SOURCES: Record<string, Source> = {
       const text = visibleText(html);
       const dates = /📅 Dates (.+?) (?:✈|🏠|🚗|🌙|🍳|👥)/u.exec(text)?.[1].trim();
       if (!dates) return null;
-      // the early-bird price holds until its deadline; after that the regular one
-      const early = /Early Bird Price — Ends ([A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,? 20\d\d) \$([\d,]+)/.exec(text);
-      const later = /After [A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,?(?: 20\d\d)? \$([\d,]+)/.exec(text);
+      // the early-bird price holds until its deadline; after that the regular one. Trips abroad are priced in dollars
+      // ("$735 ... After August 31st, 2026 $779"), trips in India in rupees ("₹49,999 ... After November 15th, 2026 ₹51,999")
+      const early = /Early Bird Price — Ends ([A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,? 20\d\d) ([$₹])\s?([\d,]+)/u.exec(text);
+      const later = /After [A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?,?(?: 20\d\d)? ([$₹])\s?([\d,]+)/u.exec(text);
       const deadline = early ? rangeStart(early[1].replace(/(\d)(st|nd|rd|th)/, "$1")) : null;
-      const usd = early && deadline && deadline >= TODAY ? num(early[2]) : num(later?.[1]) ?? num(early?.[2]);
-      const inr = num(/Total Cost ₹\s?([\d,]+)/.exec(text)?.[1]) ?? num(/₹\s?([\d,]+) per person/.exec(text)?.[1]);
-      const price = usd ? Math.round(usd * USD_INR) : inr;
+      const offer = early && deadline && deadline >= TODAY ? { cur: early[2], n: num(early[3]) } : later ? { cur: later[1], n: num(later[2]) } : early ? { cur: early[2], n: num(early[3]) } : null;
+      const inr = offer?.cur === "₹" ? offer.n : num(/Total Cost ₹\s?([\d,]+)/.exec(text)?.[1]) ?? num(/₹\s?([\d,]+) per person/.exec(text)?.[1]);
+      const price = offer?.cur === "$" && offer.n ? Math.round(offer.n * USD_INR) : inr;
       if (!price) return null;
       // "26 Dec – 1 Jan", "26 Sept – 6 Oct", "June 20 – 28" or "14 – 17 Aug", with the year taken from the page
       const dm = /^(\d{1,2})\s+([A-Za-z]{3,})/.exec(dates) ?? /^(\d{1,2})\s*–\s*\d{1,2}\s+([A-Za-z]{3,})/.exec(dates);
@@ -1064,9 +1227,13 @@ const SOURCES: Record<string, Source> = {
         .replace(/\b[A-Z]{3,}\b/g, (w) => (["NYE", "USA", "UAE", "DJ"].includes(w) ? w : w[0] + w.slice(1).toLowerCase()));
       const who = /Who it's for (.{0,40})/.exec(text)?.[1] ?? "";
       const place = ((ev.location as Record<string, unknown>)?.name as string) ?? null;
+      // their og:image is a dark poster with the trip's name over it; the page's first photo (the one their image host
+      // resizes, "?tr=") is the same picture without the poster, so that is used, at a card's size
+      const hero = /https:\/\/ik\.imagekit\.io\/offlinebyhappyhour\/[^"'\s?\\]+\.(?:jpe?g|png|webp)(?=\?tr=)/i.exec(html)?.[0];
+      const heroPhoto = hero ? `${hero}?tr=w-1600` : null;
       return {
-        ...empty, url, title, image: meta(html, "og:image"), duration_days: durationFrom(/Length ([^·]+· \d+ nights?)/i.exec(text)?.[1] ?? ""), location: place,
-        gst_included: /all-in incl\.? 5% GST/i.test(text) ? false : null, women_only: /women[- ]only/i.test(who),
+        ...empty, url, title, image: heroPhoto ?? meta(html, "og:image"), duration_days: durationFrom(/Length ([^·]+· \d+ nights?)/i.exec(text)?.[1] ?? ""), location: place,
+        gst_included: /all-in incl\.? 5% GST/i.test(text) ? false : null, women_only: /women[- ]only/i.test(who) || undefined,
         departures: [{ start, end: iso(ev.endDate), price, seats_total: null, seats_left: null }],
       };
     },
@@ -1092,7 +1259,7 @@ function withoutBookingAmount<T extends { departures: { price: number }[] }>(tri
 /** Departures that Vacation Labs sites publish as schema.org events (on collection and trip pages): one event per date and price option. */
 function vacationLabsTrips(html: string): Draft[] {
   const byUrl = new Map<string, Draft>();
-  for (const block of html.matchAll(/<script type="application\/ld\+json">(\{"@context":"https:\/\/schema\.org","@type":"Event"[\s\S]*?)<\/script>/g)) {
+  for (const block of html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>(\{"@context":"https:\/\/schema\.org","@type":"Event"[\s\S]*?)<\/script>/g)) {
     // the description can hold raw line breaks, which JSON.parse rejects, so the fields are read one by one
     const ev = block[1];
     const field = (k: string) => new RegExp(`"${k}":"([^"]*)"`).exec(ev)?.[1] ?? null;
@@ -1108,6 +1275,226 @@ function vacationLabsTrips(html: string): Draft[] {
     byUrl.set(url, draft);
   }
   return [...byUrl.values()];
+}
+
+// ---------- day-by-day itinerary ----------
+// Only the operator's own words: each day's heading and text as their trip page gives it, nothing written here.
+// A page's itinerary is kept only when its days run 1, 2, 3 ... and their count matches the trip's length (±1, for
+// pages that count nights or add a travel day), so a summary list or another trip's plan isn't taken by mistake.
+
+/** The page as lines of text, one per block element (heading, paragraph, list item ...). */
+function htmlLines(html: string): string[] {
+  const body = html.replace(/<(script|style|noscript|svg|template|head)\b[^>]*>[\s\S]*?<\/\1>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ");
+  return decodeEntities(body.replace(/<\/?(p|div|li|ul|ol|h[1-6]|br|tr|td|th|section|article|summary|details|button|header|footer|dt|dd|label|figcaption|strong|b)\b[^>]*>/gi, "\n").replace(/<[^>]+>/g, " "))
+    .replace(/&rarr;/g, "→").replace(/&larr;/g, "←").replace(/&mdash;/g, "—").replace(/&middot;/g, "·").replace(/&[a-z]+;/g, " ")
+    .split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+/** A day's text, one paragraph or bullet per line. A line that a bold word or a link split mid-sentence ("boarding the" /
+ * "Golden Temple train" / ". It leaves") is joined back up. */
+function dayText(lines: string[]): string {
+  const out: string[] = [];
+  for (const line of lines) {
+    const prev = out.at(-1);
+    // a short label ("Drive:", "Altitude:") belongs with what follows it
+    if (prev && ((!/[.!?:;)]$/.test(prev) && (/(^|\s)[a-z][a-z']*,?$|,$/.test(prev) || /^[a-z.,;:)(]/.test(line))) || (/:$/.test(prev) && prev.length <= 24))) out[out.length - 1] = `${prev}${/^[.,;:)]/.test(line) ? "" : " "}${line}`;
+    else out.push(line);
+  }
+  return out.join("\n").slice(0, 2000).trim();
+}
+
+// "Day 1: Arrival", "DAY 02 - Manali", "Day 3 & 4 | Spiti"
+const DAY_LINE = /^day\s*[-:]?\s*0?(\d{1,2})(?:\s*(?:&|and|-|–|to)\s*0?\d{1,2}(?!\d))?\s*(?:[:\-–—|.)]\s*|\s+|$)(.*)$/i;
+// where a page's day-by-day text ends and the next section begins
+const AFTER_DAYS = /^(download|request (your|an?) |enquire|send (an )?enquiry|get (a )?(call|quote)|view (more|less)|read more|what'?s in the package|included|excluded|inclusions?|exclusions?|what'?s (not )?included|things to (carry|pack)|what to (carry|pack)|faqs?|frequently asked|cancellation|terms|book (now|your)|dates? (&|and) (price|cost)|price|pricing|reviews?|trip highlights|policies|know before you go|important notes?|pack(ing)? list|other info)\b/i;
+
+/** A day's heading without the date of one particular departure: "· Tue 24 Nov · Arrival" → "Arrival", "27 DEC: Flight to Da Nang" → "Flight to Da Nang". */
+const dayTitle = (t: string) => decodeEntities(t).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").replace(/^day\s*0?\d{1,2}\s*[:\-–—|.]\s*/i, "").replace(/^[:\-–—|.·\s]+/, "")
+  .replace(/^(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?\d{1,2}(?:st|nd|rd|th)?\s+[a-z]{3,9}\.?(?:,?\s+20\d\d)?\s*(?:[:·|\-–]\s*|$)/i, "")
+  .replace(/^[:\-–—|.·\s]+|[\s·|:]+$/g, "").replace(/^\d{1,2}$/, "").trim();
+
+function fitsTrip(days: ImportedDay[], duration: number | null): boolean {
+  // a day can come without a heading of its own ("Day 1" and then its text); the site then leads with its first sentence
+  return days.length >= 2 && days.every((d, i) => d.day === i + 1 && (d.title || d.description) && d.title !== "[object Object]")
+    && (!duration || (days.length >= duration - 1 && days.length <= duration + 1));
+}
+
+/** "Day 1 ..." headings in the page, each followed by its text. */
+function dayHeadings(html: string, duration: number | null): ImportedDay[] | null {
+  const lines = htmlLines(html);
+  const runs: { day: number; title: string; body: string[]; open: boolean }[][] = [];
+  let run: (typeof runs)[number] | null = null;
+  for (const line of lines) {
+    const m = DAY_LINE.exec(line);
+    // a heading, not a sentence that mentions a day ("Day 1 is a travel day ...")
+    if (m && line.length <= 160 && !/^[a-z]/.test(m[2])) {
+      const n = Number(m[1]);
+      if (n === 1) runs.push((run = []));
+      if (run && n === (run.at(-1)?.day ?? 0) + 1) run.push({ day: n, title: dayTitle(m[2]), body: [], open: true });
+      else if (run && n !== run.at(-1)?.day) run = null;
+      continue;
+    }
+    const last = run?.at(-1);
+    if (!last?.open) continue;
+    // another section (inclusions, prices) ends the day's text; a later "Day 7" can still carry the plan on, as on
+    // pages that set the inclusions beside the first days
+    if (AFTER_DAYS.test(line) && line.length < 60) last.open = false;
+    // a heading is a short line, not a sentence or two of prose
+    else if (!last.title && line.length < 120 && !/[.!?]\s+[A-Z]/.test(line)) last.title = dayTitle(line);
+    else last.body.push(line);
+  }
+  const fits = runs.map((r) => r.map((d) => ({ day: d.day, title: d.title, description: dayText(d.body) }))).filter((r) => fitsTrip(r, duration));
+  // pages often list the day headings on their own before the full day-by-day text: the fullest copy wins
+  const words = (r: ImportedDay[]) => r.reduce((n, d) => n + d.description.length, 0);
+  return fits.sort((a, b) => words(b) - words(a))[0] ?? null;
+}
+
+/** schema.org markup: a TouristTrip's "itinerary" (an ItemList of days), in the page or in the data a Next.js page streams. */
+function markupDays(html: string, duration: number | null): ImportedDay[] | null {
+  const lists: unknown[][] = [];
+  const walk = (o: unknown, key = ""): void => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o)) return o.forEach((x) => walk(x, key));
+    const r = o as Record<string, unknown>;
+    if (Array.isArray(r.itemListElement) && (key === "itinerary" || /itinerary/i.test(`${r["@id"] ?? ""} ${r.name ?? ""}`))) lists.push(r.itemListElement);
+    for (const [k, v] of Object.entries(r)) {
+      if (k === "itinerary" && Array.isArray(v)) lists.push(v);
+      else walk(v, k);
+    }
+  };
+  walk(jsonLd(html));
+  walk(objectsWithKey(pageData(html), "itinerary"));
+  for (const list of lists) {
+    const days = list.map((x, i): ImportedDay | null => {
+      const li = x as Record<string, unknown>;
+      const item = (li.item && typeof li.item === "object" ? li.item : li) as Record<string, unknown>;
+      // a list of places (a route: "Bentota", "Kandy") rather than days; some sites file each day as a place ("Day 1: Arrival")
+      if (/Place|City|Landform|TouristAttraction/.test(String(item["@type"] ?? "")) && !/^\s*day\b/i.test(String(item.name ?? ""))) return null;
+      return { day: num(li.position) ?? i + 1, title: dayTitle(String(item.name ?? "")), description: dayText(htmlLines(String(item.description ?? "").replace(/\\n|\n/g, "<br>"))) };
+    });
+    if (days.every((d): d is ImportedDay => d !== null) && fitsTrip(days, duration)) return days;
+  }
+  return null;
+}
+
+/** Day objects in a page's data: {"dayCount":"DAY 2","title":...,"description":...}, {"dayNumber":1,"descriptionHeader":...,"descriptionDetail":...}. */
+function dataDays(html: string, duration: number | null): ImportedDay[] | null {
+  const text = pageData(html);
+  const plain = (v: unknown): string => typeof v === "string" ? dayText(htmlLines(v.replace(/\\n|\n/g, "<br>")))
+    // Sanity's rich text: blocks of spans
+    : Array.isArray(v) ? v.map((b) => ((b as { children?: { text?: string }[] }).children ?? []).map((c) => c.text ?? "").join("")).filter(Boolean).join("\n").slice(0, 2000) : "";
+  for (const key of ["dayNumber", "dayCount", "dayNo", "day_number", "daysnumber", "day"]) {
+    const objs = objectsWithKey(text, key);
+    const days: ImportedDay[] = [];
+    for (const o of objs) {
+      const n = Number(/\d+/.exec(String(o[key]))?.[0]);
+      const title = dayTitle(String(o.title ?? o.descriptionHeader ?? o.heading ?? o.name ?? ""));
+      if (!n || !title) continue;
+      if (n === 1 && days.length) {
+        if (fitsTrip(days, duration)) break;
+        days.length = 0;
+      }
+      if (n === days.length + 1) days.push({ day: n, title, description: plain(o.description ?? o.descriptionDetail ?? o.details ?? o.content) });
+    }
+    if (fitsTrip(days, duration)) return days;
+  }
+  return null;
+}
+
+/** Two site layouts with the day number on its own: Kesari's accordion (day00, day01 ...) and Part-Time Traveller's day cards. */
+function layoutDays(html: string, duration: number | null): ImportedDay[] | null {
+  const clean = (s: string) => dayText(htmlLines(s));
+  // <button data-bs-target="#day00"> ... <div> 1 </div></span><div> Srinagar <span> Sat, 20 Mar 2027 </span></div> ... <div id="day00"> text </div>
+  const kesari = [...html.matchAll(/data-bs-target="#day\d+"[\s\S]*?<div[^>]*>\s*(\d{1,2})\s*<\/div>\s*<\/span>\s*<div[^>]*>([\s\S]*?)<\/div>[\s\S]*?id="day\d+"[^>]*>([\s\S]*?)(?=<h2\b|<\/section>)/g)]
+    .map((m) => ({ day: Number(m[1]), title: dayTitle(stripTags(m[2].replace(/<span[\s\S]*?<\/span>/g, ""))), description: clean(m[3]) }));
+  if (fitsTrip(kesari, duration)) return kesari;
+  // <div class="day-circle">01</div> ... <p class="day-title">...</p><p class="day-desc">...</p><span class="day-overnight">Overnight: Aizawl</span>
+  const cards = [...html.matchAll(/class="day-circle">\s*0?(\d{1,2})\s*<[\s\S]*?class="day-title">([\s\S]*?)<\/p>([\s\S]*?)(?=class="day-circle"|<\/div>\s*<\/div>\s*<\/div>\s*<div class="(?!day-item))/g)]
+    .map((m) => ({ day: Number(m[1]), title: dayTitle(stripTags(m[2])), description: clean(m[3].replace(/<p class="day-date">[\s\S]*?<\/p>/g, "")) }));
+  if (fitsTrip(cards, duration)) return cards;
+  // Wovoyage: <div class="wo-day"> <span class="num">1</span> ... <div class="wo-day__title">...</div> ... <div class="wo-day__body">...</div>
+  const wo = html.split(/<div class="wo-day(?:\s[^"]*)?"/).slice(1).map((chunk) => ({
+    day: Number(/class="num">\s*0?(\d{1,2})\s*</.exec(chunk)?.[1]), title: dayTitle(stripTags(/class="wo-day__title">([\s\S]*?)<\/div>/.exec(chunk)?.[1] ?? "")),
+    description: clean(/class="wo-day__body">([\s\S]*)/.exec(chunk)?.[1] ?? ""),
+  }));
+  if (fitsTrip(wo, duration)) return wo;
+  // script data written as plain JavaScript (Trekkers United): dayOrder:1,dayTitle:"...",body:"\x3Cul>\x3Cli>..."
+  const js = (v: string) => v.replace(/\\x([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\n/g, "\n").replace(/\\(["'\\/])/g, "$1");
+  const script: ImportedDay[] = [];
+  for (const m of html.matchAll(/dayOrder:(\d{1,2}),dayTitle:"((?:[^"\\]|\\.)*)",body:"((?:[^"\\]|\\.)*)"/g)) {
+    const n = Number(m[1]);
+    if (n === 1 && script.length) break;
+    if (n === script.length + 1) script.push({ day: n, title: dayTitle(js(m[2])), description: clean(js(m[3])) });
+  }
+  if (fitsTrip(script, duration)) return script;
+  return null;
+}
+
+/** The trip's day-by-day plan from its page, or null when the page has none we can read with confidence. */
+export function itineraryFrom(html: string, duration: number | null): ImportedDay[] | null {
+  // a page can carry its plan twice (markup with day titles only, and the full text): the copy with the most words wins
+  const found = [markupDays, dataDays, layoutDays, dayHeadings].map((read) => read(html, duration)).filter((d): d is ImportedDay[] => d !== null);
+  const words = (days: ImportedDay[]) => days.reduce((n, d) => n + d.description.length, 0);
+  return found.sort((a, b) => words(b) - words(a))[0] ?? null;
+}
+
+// GST wording on a trip page. "₹9,400 per person + 5% GST", "5% GST extra", "Excl. GST", "Cost excludes 5% GST",
+// "Exclusions: 5% GST", "5% GST is applicable on given tour price" mean it is added at checkout; "All prices are
+// inclusive of GST" means it isn't. A page that says both is left as unknown rather than guessed.
+const GST_EXTRA = new RegExp([
+  String.raw`(?:\+|plus)\s*(?:@\s*)?(?:5\s*%\s*)?gst\b`, String.raw`\bgst\s*(?:@\s*)?(?:\(?5\s*%\)?\s*)?(?:extra|additional|will be (?:charged|added|applicable)|(?:is |are )?applicable (?:extra|on)|as applicable|not included|excluded)`,
+  String.raw`\b5\s*%\s*gst\s*(?:\(tax\)\s*)?(?:extra|is applicable|will be|not included|and (?:2\s*%\s*)?tcs (?:are )?(?:not included|extra|applicable))`,
+  String.raw`\bexcl(?:\.|uding|usive)?\s*(?:of\s*)?(?:all\s*)?gst\b`, String.raw`\b(?:cost|price)s? exclude[sd]?\b[^.]{0,60}\bgst\b`, String.raw`\bgst\b[^.]{0,12}\b(?:during|at) (?:the )?(?:checkout|time of (?:booking|payment))`, String.raw`\bgst\b[^.]{0,30}\bwill apply\b`,
+  String.raw`\bexclusions?\s*:?\s*(?:[^.]{0,40}\s)?(?:5\s*%\s*)?gst\b`, String.raw`\b(?:5\s*%\s*)?gst\b[^.]{0,60}\b(?:are|is) not included`,
+].join("|"), "i");
+const GST_IN = /\b(?:inclusive of|incl\.? of|including|includes?)\s*(?:all\s*)?(?:gst|taxes)\b|\bgst\s*(?:is\s*)?(?:included|inclusive)\b/i;
+
+// the heading of a page's "not included" list, and the headings that end it
+const EXCL_HEAD = /^(?:exclusions?|excluded|cost excludes?|price excludes?|what'?s not included|not included|what is not included(?: in the (?:tour|trip|package))?|things not included)\s*:?$/i;
+const NEXT_HEAD = /^(?:inclusions?|included|cost includes?|what'?s included|things to (?:carry|pack)|what to (?:carry|pack)|faqs?|cancellation|policies|terms|itinerary|day\s*1\b|reviews?|how to reach|important|notes?)\b/i;
+
+const INCL_HEAD = /^(?:inclusions?|included|what'?s included|cost includes?|price includes?|the trip includes)\s*:?$/i;
+
+/** Whether an "included" list on the page names GST ("Inclusive of GST (5%)"). */
+function gstInInclusions(html: string): boolean {
+  const lines = htmlLines(html);
+  for (let i = 0; i < lines.length; i++) {
+    if (!INCL_HEAD.test(lines[i])) continue;
+    for (const line of lines.slice(i + 1, i + 40)) {
+      if (EXCL_HEAD.test(line) || (NEXT_HEAD.test(line) && !INCL_HEAD.test(line))) break;
+      // a list item ("Inclusive of GST (5%)", "5% GST and 2% TCS"), not a price line ("₹22,100 + 5% GST") or prose
+      if (line.length <= 90 && /\bgst\b/i.test(line) && !/\bnot\b|\bexcl|\bextra\b|\badditional\b|\bplus\b|\+|@|₹/i.test(line)) return true;
+    }
+  }
+  return false;
+}
+
+/** Whether a "not included" list on the page (or in the data a Next.js page streams) names GST. */
+function gstInExclusions(html: string): boolean {
+  if (objectsWithKey(pageData(html), "exclusions").some((o) => /\bGST\b/i.test(JSON.stringify(o.exclusions)))) return true;
+  // the same in a page's script data written as plain JavaScript: exclusions:"5% GST # Any kind of personal expense # ..."
+  if (/\bexclusions?["']?\s*:\s*["'][^"']{0,800}?\bGST\b/i.test(html)) return true;
+  const lines = htmlLines(html);
+  for (let i = 0; i < lines.length; i++) {
+    if (!EXCL_HEAD.test(lines[i])) continue;
+    for (const line of lines.slice(i + 1, i + 40)) {
+      if (NEXT_HEAD.test(line) || EXCL_HEAD.test(line)) break;
+      if (/\bgst\b|goods and services tax/i.test(line)) return true;
+    }
+  }
+  return false;
+}
+
+/** What a trip page says about GST: added on top (false), already in the price (true), or nothing clear (null). */
+export function gstFromPage(html: string): boolean | null {
+  // the page's own lists decide first: GST under "Not included" is extra, under "Included" it is in the price
+  if (gstInExclusions(html)) return false;
+  if (gstInInclusions(html)) return true;
+  const text = visibleText(html);
+  const extra = GST_EXTRA.test(text);
+  const incl = GST_IN.test(text);
+  return extra === incl ? null : incl;
 }
 
 /** Whether the operator's own lists say GST is included, excluded, or don't say. */
@@ -1133,11 +1520,20 @@ async function importOperator(id: string, src: Source) {
   }
   if (!urls.length && !report.note) report.note = "no trip pages found";
   const maxTrips = src.maxTrips ?? MAX_TRIPS;
+  // trip pages fetched for a second look (a listing's trips, hub pages), each fetched once
+  const pages = new Map<string, Promise<string | null>>();
+  const pageOf = (u: string) => {
+    const own = u.split("#")[0];
+    if (!/^https?:/.test(own)) return Promise.resolve(null);
+    if (!pages.has(own)) pages.set(own, fetchText(own));
+    return pages.get(own)!;
+  };
   for (const url of urls) {
     if (trips.length >= maxTrips || report.pages_read >= (src.maxPages ?? MAX_PAGES)) break;
     const html = await fetchText(url);
     report.pages_read++;
     if (!html) continue;
+    pages.set(url, Promise.resolve(html));
     report.pages_ok++;
     let found: Draft[] = [];
     try {
@@ -1146,31 +1542,70 @@ async function importOperator(id: string, src: Source) {
     } catch {
       found = [];
     }
-    for (const draft of found) {
-    if (trips.length >= maxTrips || taken.has(draft.url) || !draft.title) continue;
-    taken.add(draft.url);
-    // a "capacity" of one or two is a placeholder on some sites, not a real group size
-    for (const d of draft.departures) if (d.seats_total !== null && d.seats_total < 4) d.seats_total = d.seats_left = null;
-    const seen = new Set<string>();
-    const departures = draft.departures
-      .filter((d) => d.start && d.start >= TODAY && d.start <= HORIZON && d.price >= 500 && !seen.has(d.start) && seen.add(d.start))
-      .sort((a, b) => a.start.localeCompare(b.start)).slice(0, MAX_DEPARTURES);
-    if (!departures.length) continue;
-    const dest = matchDestination(draft.title, draft.location, slugOf(url).replace(/-/g, " "));
-    if (!dest) {
-      report.skipped_no_destination.push(draft.title);
-      continue;
+    for (const listed of found) {
+      if (trips.length >= maxTrips || taken.has(listed.url) || !listed.title) continue;
+      taken.add(listed.url);
+      // a trip read from a listing is checked against its own page when the reader knows how (a hub page can stand
+      // for several trips, and a page that no longer offers a date drops it)
+      let drafts = [listed];
+      if (src.detail) {
+        const page = await pageOf(listed.url);
+        try {
+          const checked = page ? await src.detail(listed, page) : listed;
+          drafts = checked ? (Array.isArray(checked) ? checked : [checked]) : [];
+        } catch (e) {
+          drafts = [];
+          report.note ||= `could not check ${listed.url}: ${e instanceof Error ? e.message : e}`;
+        }
+      }
+      for (const draft of drafts) {
+        if (trips.length >= maxTrips || (draft.url !== listed.url && taken.has(draft.url))) continue;
+        taken.add(draft.url);
+        // a "capacity" of one or two is a placeholder on some sites, not a real group size
+        for (const d of draft.departures) if (d.seats_total !== null && d.seats_total < 4) d.seats_total = d.seats_left = null;
+        const seen = new Set<string>();
+        const departures = draft.departures
+          .filter((d) => d.start && d.start >= TODAY && d.start <= HORIZON && d.price >= 500 && !seen.has(d.start) && seen.add(d.start))
+          .sort((a, b) => a.start.localeCompare(b.start)).slice(0, MAX_DEPARTURES);
+        if (!departures.length) continue;
+        const dest = matchDestination(draft.title, draft.location, slugOf(draft.url).replace(/-/g, " "), slugOf(url).replace(/-/g, " "));
+        if (!dest) {
+          report.skipped_no_destination.push(draft.title);
+          continue;
+        }
+        draft.title = decodeEntities(decodeEntities(draft.title)).replace(/\s+/g, " ").trim();
+        if (!draft.duration_days && draft.departures[0]?.end) draft.duration_days = daysBetween(draft.departures[0].start, draft.departures[0].end) + 1;
+        // the day-by-day plan, and the GST wording when the reader found none, from the trip's own page
+        if (!draft.itinerary || draft.gst_included === null) {
+          const page = await pageOf(draft.url);
+          if (page) {
+            draft.itinerary ??= itineraryFrom(page, draft.duration_days) ?? undefined;
+            if (draft.gst_included === null) draft.gst_included = gstFromPage(page);
+          }
+        }
+        // the group size, only where the trip's own page says it ("Group Size: Limited to 18 travelers")
+        if (draft.group_size === undefined) {
+          const page = await pageOf(draft.url);
+          draft.group_size = page ? statedGroupSize(visibleText(page)) : null;
+        }
+        // shouted titles are easier to read in title case; the words are unchanged
+        if (draft.title === draft.title.toUpperCase()) draft.title = draft.title.toLowerCase().replace(/(^|[\s(/&-])([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase()).replace(/\b(\d+)(n|d)\b/gi, (_, n, u) => n + u.toUpperCase());
+        trips.push({ ...draft, image: imageUrl(draft.image, draft.url), operator_id: id, destination_slug: dest.slug,
+          // a reader that knows (Wovoyage labels every trip) decides; otherwise the source or the title does
+          women_only: draft.women_only ?? Boolean(src.womenOnly || WOMEN_ONLY.test(draft.title)), departures });
+      }
     }
-    draft.title = decodeEntities(decodeEntities(draft.title)).replace(/\s+/g, " ").trim();
-    if (!draft.duration_days && draft.departures[0]?.end) draft.duration_days = daysBetween(draft.departures[0].start, draft.departures[0].end) + 1;
-    // shouted titles are easier to read in title case; the words are unchanged
-    if (draft.title === draft.title.toUpperCase()) draft.title = draft.title.toLowerCase().replace(/(^|[\s(/&-])([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase()).replace(/\b(\d+)(n|d)\b/gi, (_, n, u) => n + u.toUpperCase());
-    trips.push({ ...draft, image: imageUrl(draft.image, draft.url), operator_id: id, destination_slug: dest.slug, women_only: Boolean(draft.women_only || src.womenOnly || WOMEN_ONLY.test(draft.title)), departures });
-    }
+  }
+  // a photo of its own for each trip, where its page has one: no logos, no site-wide banner, no photo of another place
+  try {
+    await settlePhotos(trips, pageOf);
+  } catch (e) {
+    report.note ||= `could not check photos: ${e instanceof Error ? e.message : e}`;
   }
   report.trips = trips.length;
   report.departures = trips.reduce((n, t) => n + t.departures.length, 0);
-  console.log(`${id.padEnd(18)} pages ${String(report.pages_read).padStart(2)}  trips ${String(report.trips).padStart(2)}  departures ${String(report.departures).padStart(3)}  ${report.note}`);
+  const days = trips.filter((t) => t.itinerary?.length).length;
+  console.log(`${id.padEnd(18)} pages ${String(report.pages_read).padStart(2)}  trips ${String(report.trips).padStart(2)}  departures ${String(report.departures).padStart(3)}  day-by-day ${String(days).padStart(2)}  ${report.note}`);
   return { trips, report };
 }
 
@@ -1246,7 +1681,7 @@ async function main() {
       console.log(`\n== ${r.report.operator_id}`);
       for (const t of r.trips) {
         const d = t.departures;
-        console.log(`  ${t.title.slice(0, 60).padEnd(60)} ${t.destination_slug.padEnd(16)} ${String(t.duration_days ?? "?").padStart(2)}d  ${d.length} dates ${d[0].start}…  ₹${d.map((x) => x.price).join("/")}`.slice(0, 190));
+        console.log(`  ${t.title.slice(0, 60).padEnd(60)} ${t.destination_slug.padEnd(16)} ${String(t.duration_days ?? "?").padStart(2)}d  ${d.length} dates ${d[0].start}…  ₹${d.map((x) => x.price).join("/")}${t.gst_included === false ? " +GST" : ""}${t.women_only ? "  women-only" : ""}`.slice(0, 200));
       }
       if (r.report.skipped_no_destination.length) console.log(`  no known destination: ${r.report.skipped_no_destination.join("; ")}`);
     }

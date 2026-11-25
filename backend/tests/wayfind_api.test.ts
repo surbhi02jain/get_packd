@@ -91,10 +91,9 @@ describe("Search", () => {
       assert.equal(card.gender_split, null);
       assert.equal(card.age_range, null);
       assert.equal(card.op.verified_status, "listed");
-      // the only amount ever added to a listed price is 5% GST
-      const extras = card.breakdown.filter((l: { amount: number }) => l.amount > 0);
-      assert.ok(extras.every((l: { key: string }) => l.key === "taxes"));
-      assert.equal(card.true_price, card.price + extras.reduce((n: number, l: { amount: number }) => n + l.amount, 0));
+      // the price is shown exactly as listed; GST charged on top is flagged ("+ 5% GST"), never added in
+      assert.equal(card.true_price, card.price);
+      assert.equal(typeof card.gst_extra, "boolean");
     }
   });
 
@@ -175,6 +174,23 @@ describe("Compare", () => {
     const r = await get("/departures", { params: { ids } });
     assert.equal(r.status, 200);
     assert.equal(r.data.items.length, 2);
+  });
+
+  it("saved departures of a renamed trip, a dropped date or a gone trip", async () => {
+    const card = (await get("/home")).data.trending[0] as { dep_id: string; trip_id: string; start: string; op: { id: string } };
+    const code = /-([0-9a-f]{6})$/.exec(card.trip_id)![1];
+    // the same trip (operator and page) under the title it had before
+    const renamed = `${card.op.id}-a-title-it-had-before-${code}-${card.start}`;
+    // a date the operator no longer lists
+    const dropped = `${card.trip_id}-2099-01-01`;
+    const gone = `${card.op.id}-no-such-trip-000000-${card.start}`;
+    const r = await get("/departures", { params: { ids: [card.dep_id, renamed, dropped, gone].join(",") } });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.moved[renamed], card.dep_id);
+    assert.ok(r.data.moved[dropped].startsWith(card.trip_id));
+    assert.deepEqual(r.data.missing, [gone]);
+    // the same departure is shown once
+    assert.equal(r.data.items.filter((i: { dep_id: string }) => i.dep_id === card.dep_id).length, 1);
   });
 });
 

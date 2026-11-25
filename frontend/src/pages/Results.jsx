@@ -25,7 +25,7 @@ import { InkLabel, InkTitle } from "@/components/Ink";
 // categories with one Filters button, a grid of photo-first trips, and a map of prices beside them.
 
 // what the Filters button counts: everything set from inside the filters popup
-const FILTER_KEYS = ["gender", "dtype", "country", "visa_easy", "dur", "climate", "incl", "op_type", "operator"];
+const FILTER_KEYS = ["gender", "dtype", "place", "country", "visa_easy", "dur", "climate", "incl", "op_type", "operator"];
 
 const titleCase = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 

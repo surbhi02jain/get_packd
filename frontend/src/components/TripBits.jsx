@@ -31,7 +31,7 @@ export function TruePricePopover({ card, testId }) {
       <PopoverContent className="w-80 rounded-2xl p-4" onClick={(e) => e.stopPropagation()} data-testid="true-price-popover">
         <p className="font-display text-lg">How we calculated this</p>
         <p className="mt-1 text-xs text-muted-foreground">{real
-          ? "The listed price comes from the operator's own page. We only add 5% GST when the operator says GST is extra; everything else is shown as the operator states it."
+          ? "The price comes from the operator's own page, exactly as they list it. When they say GST is extra, it's shown as \"+ 5% GST\" next to the price, as on their page."
           : "Every trip is normalised to the same checklist, from the meeting point onward. Anything excluded is estimated from our reference table."}</p>
         <div className="mt-3 space-y-1.5 text-sm">
           <Row label="Listed price" amount={inr(card.price)} />
@@ -45,7 +45,7 @@ export function TruePricePopover({ card, testId }) {
             </div>
           ))}
           <div className="perf my-2" />
-          <Row label={<b>{real ? (extra > 0 ? "Price with GST" : "Listed price") : "True total price"}</b>} amount={<b>{inr(card.true_price)}</b>} />
+          <Row label={<b>{real ? "Listed price" : "True total price"}</b>} amount={<b>{inr(card.true_price)}{card.gst_extra ? " + 5% GST" : ""}</b>} />
           {extra > 0 && <p className="text-xs text-muted-foreground">{real ? `${inr(extra)} GST the operator lists as extra.` : `${inr(extra)} of costs the listing didn't show.`}</p>}
           {card.flights_est > 0 && <p className="text-xs text-muted-foreground">Flights to the meeting point are not included (est. {inr(card.flights_est)} return, reference only).</p>}
         </div>

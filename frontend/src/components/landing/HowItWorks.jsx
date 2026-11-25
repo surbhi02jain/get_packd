@@ -5,7 +5,7 @@ import { createLoopScene } from "./loopScene";
 
 const STEPS = [
   ["Read from the source", "Dates, prices and inclusions are read straight from each operator's own website, so every departure sits in one place."],
-  ["Put side by side", "Each departure gets a true price, with what's included and what's extra added up, so trips line up like for like."],
+  ["Put side by side", "Each departure shows its price as the operator lists it, with what's included and what's extra beside it."],
   ["Booked with the operator", "Shortlist, compare, then go to the operator's own page to book. No payment on getPackd, and no commission."],
 ];
 

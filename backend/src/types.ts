@@ -148,6 +148,8 @@ export interface Departure {
   start_date: string;
   end_date: string;
   price_inr: number;
+  /** Only a starting price is known for this date (the operator's "From ₹X"). */
+  price_from?: boolean;
   seats_total: number | null;
   seats_left: number | null;
   status: string;

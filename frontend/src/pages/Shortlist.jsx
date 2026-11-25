@@ -14,10 +14,19 @@ import { fmtRange, money } from "@/lib/format";
 import TripPhoto from "@/components/TripPhoto";
 
 export function Shortlist() {
-  const { hearts, user } = useApp();
+  const { hearts, user, settleHearts } = useApp();
   const [link, setLink] = useState(null);
+  const [gone, setGone] = useState(0);
   const ids = hearts.join(",");
-  const { data, isLoading } = useQuery({ queryKey: ["deps", ids], queryFn: () => http.get(`/departures?ids=${encodeURIComponent(ids)}`).then((r) => r.data), enabled: !!ids });
+  const { data, isLoading, isError } = useQuery({ queryKey: ["deps", ids], queryFn: () => http.get(`/departures?ids=${encodeURIComponent(ids)}`).then((r) => r.data), enabled: !!ids });
+  // a saved trip that was renamed or lost its date is saved under its new id; one that is no longer listed is dropped
+  useEffect(() => {
+    const moved = data?.moved ?? {};
+    const missing = data?.missing ?? [];
+    if (!missing.length && !Object.keys(moved).length) return;
+    if (missing.length) setGone((n) => n + missing.length);
+    settleHearts(moved, missing);
+  }, [data, settleHearts]);
   // the same shortlist gives the same link, so friends' votes all land in one place; a changed shortlist gets a new one
   const share = async () => {
     let id = null;
@@ -58,6 +67,9 @@ export function Shortlist() {
           </div>
         )}
         <div className="mt-8 space-y-5">
+          {gone > 0 && <p data-testid="shortlist-gone" className="text-muted-foreground">
+            {gone === 1 ? "1 trip you saved is" : `${gone} trips you saved are`} no longer listed by {gone === 1 ? "its operator" : "their operators"}, so {gone === 1 ? "it was" : "they were"} taken off your shortlist.</p>}
+          {isError && <p data-testid="shortlist-error">Couldn't load your saved trips just now. Please try again in a moment.</p>}
           {!hearts.length && <p data-testid="shortlist-empty">Tap the heart on any departure to save it here. <Link to="/search" className="underline">Browse trips</Link></p>}
           {isLoading && <div className="shimmer h-56 rounded-[24px]" />}
           {data?.items.map((c) => <div key={c.dep_id} data-testid={`shortlist-card-${c.dep_id}`}><DepartureCard card={c} /></div>)}
@@ -104,10 +116,10 @@ export function SharedShortlist() {
             const names = (list) => list.map(([n]) => n.replaceAll("\uFF0E", ".").replace(/^\uFF04/, "$")).join(", ");
             return (
               <div key={c.dep_id} className="flex flex-col gap-4 rounded-[24px] bg-card p-4 shadow-soft sm:flex-row sm:items-center" data-testid={`shared-item-${c.dep_id}`}>
-                <TripPhoto src={c.image} dest={c.dest_slug} className="h-24 w-full rounded-2xl object-cover sm:w-36" />
+                <TripPhoto src={c.image} dest={c.dest_slug} seed={c.trip_id} className="h-24 w-full rounded-2xl object-cover sm:w-36" />
                 <div className="min-w-0 flex-1">
                   <Link to={`/trip/${c.trip_id}?dep=${encodeURIComponent(c.dep_id)}`} className="font-display text-xl hover:underline">{c.title}</Link>
-                  <p className="text-sm text-muted-foreground">{c.op.name} · {fmtRange(c.start, c.end)} · <b className="text-foreground">{money(c.true_price, currency, c.dtype === "international")}</b> per person{c.true_price !== c.price ? " incl. GST" : ""}</p>
+                  <p className="text-sm text-muted-foreground">{c.op.name} · {fmtRange(c.start, c.end)} · <b className="text-foreground">{c.price_from ? "from " : ""}{money(c.true_price, currency, c.dtype === "international")}</b> per person{c.gst_extra ? " + 5% GST" : ""}</p>
                   {(ups.length > 0 || downs.length > 0) && <p className="mt-1 text-xs text-muted-foreground">{[ups.length ? `${names(ups)} liked` : null, downs.length ? `${names(downs)} passed` : null].filter(Boolean).join(" · ")}</p>}
                 </div>
                 <div className="flex gap-2">

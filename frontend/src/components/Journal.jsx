@@ -34,8 +34,22 @@ const STYLE_NAMES = {
 };
 // which of the sketchbook's photos goes on each style's stamp
 const STYLE_PHOTOS = {
-  women: "alleppey", hiking: "machapuchare", backpacking: "halong", beaches: "andaman", winter: "kedarkantha", roadtrip: "pangong",
-  party: "hoian", wildlife: "maasaimara", spiritual: "goldentemple", offbeat: "rootbridge", luxury: "lemorne", culture_food: "registan",
+  hiking: "machapuchare", beaches: "andaman", winter: "kedarkantha", spiritual: "goldentemple", offbeat: "rootbridge",
+  luxury: "lemorne", culture_food: "registan",
+};
+// styles no landmark can show get a photo of the trip itself (Wikimedia Commons, CC0 / CC BY / CC BY-SA)
+const COMMONS = "https://thumb.wikimedia.org/wikipedia/commons/thumb";
+const STYLE_OWN_PHOTOS = {
+  // a woman with a backpack looking over a lake and snowy peaks (CC BY 4.0)
+  women: `${COMMONS}/3/35/Hiking_in_winter.webp/1920px-Hiking_in_winter.webp`,
+  // a traveller from behind under a big rucksack (CC0, from Unsplash)
+  backpacking: `${COMMONS}/5/50/Hiker_with_a_large_backpack_%28Unsplash%29.jpg/1920px-Hiker_with_a_large_backpack_%28Unsplash%29.jpg`,
+  // a Royal Enfield parked on a Himalayan road (CC BY 3.0)
+  roadtrip: `${COMMONS}/5/5e/Royalenfield_Himalaya.jpg/1920px-Royalenfield_Himalaya.jpg`,
+  // sky lanterns rising at Yi Peng, Chiang Mai (CC BY-SA 3.0)
+  party: `${COMMONS}/2/22/Yi_peng_sky_lantern_festival_San_Sai_Thailand.jpg/1920px-Yi_peng_sky_lantern_festival_San_Sai_Thailand.jpg`,
+  // a Bengal tiger in Ranthambore (CC BY-SA 4.0)
+  wildlife: `${COMMONS}/4/46/Bengal_Tiger_%28Ranthambore_National_Park%29.jpg/1920px-Bengal_Tiger_%28Ranthambore_National_Park%29.jpg`,
 };
 const TILT = [-3, 2, -1.5, 3, -2.5, 1.5, -2, 2.5, -1, 3];
 const LABEL_TILT = [7, -5, 6, 8, -6, 5, 7, -4, 6, -7];
@@ -102,7 +116,7 @@ function AirmailStamp({ to, label, sub, photo, i, testId }) {
 }
 
 export function Styles({ styles }) {
-  const photo = (id) => SKETCHES.find((s) => s.id === STYLE_PHOTOS[id])?.src;
+  const photo = (id) => STYLE_OWN_PHOTOS[id] || SKETCHES.find((s) => s.id === STYLE_PHOTOS[id])?.src;
   const stamps = [
     { id: "women", to: "/trips/women-only-trips", label: "Women-only", sub: "all-women groups" },
     ...Object.entries(styles || {}).filter(([k, n]) => n > 0 && STYLE_NAMES[k]).sort((a, b) => b[1] - a[1]).slice(0, 9)
@@ -148,7 +162,7 @@ function Ticket({ c, i }) {
           <span className="mt-1.5 line-clamp-2 text-[16.5px] leading-snug text-[#16181b]">{c.title}</span>
           <span className="mt-1.5 truncate text-[12.5px] text-[#6b7075]">{c.op?.name} · {c.duration} days</span>
           <span className="mt-auto flex items-end justify-between gap-2 pt-3">
-            <span className="text-[19px] font-medium tabular-nums text-[#16181b]">{money(c.true_price, currency, true)}</span>
+            <span className="text-[19px] font-medium tabular-nums text-[#16181b]">{c.price_from ? "from " : ""}{money(c.true_price, currency, true)}{c.gst_extra && <span className="text-[12px] text-[#6b7075]"> + 5% GST</span>}</span>
             {note && <span className="-rotate-6 rounded-[3px] border-[1.5px] px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[.16em] mix-blend-multiply" style={{ color: RED, borderColor: RED }}>{note}</span>}
           </span>
         </div>

@@ -29,7 +29,7 @@ export function CompareTray() {
             <div className="hidden min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar sm:flex">
               {compare.map((c) => (
                 <div key={c.dep_id} className="flex shrink-0 items-center gap-2 rounded-2xl bg-white/10 py-1 pl-1 pr-2">
-                  <TripPhoto src={c.image} dest={c.dest_slug} className="h-9 w-9 rounded-xl object-cover" />
+                  <TripPhoto src={c.image} dest={c.dest_slug} seed={c.trip_id} className="h-9 w-9 rounded-xl object-cover" />
                   <span className="max-w-[110px] truncate text-xs">{c.title}</span>
                   <button data-testid={`compare-tray-remove-${c.dep_id}`} onClick={() => toggleCompare(c)} aria-label={`Remove ${c.title}`} className="rounded-full p-0.5 hover:bg-white/15"><X size={14} /></button>
                 </div>
@@ -88,7 +88,7 @@ const Q = [
   ["fq_age", "How old are you?", "number"],
   ["fq_pace", "Your ideal pace?", Object.entries(LABELS.pace)],
   ["fq_style", "What do you love? (pick any)", Object.entries(STYLES).filter(([k]) => !HIDDEN.style.includes(k)).map(([k, v]) => [k, v.label]), true],
-  ["fq_budget", "Max true price you'd pay?", [[30000, "₹30k"], [60000, "₹60k"], [100000, "₹1L"], [200000, "₹2L"]]],
+  ["fq_budget", "Max price you'd pay?", [[30000, "₹30k"], [60000, "₹60k"], [100000, "₹1L"], [200000, "₹2L"]]],
   ["fq_size", "Group size you enjoy?", Object.entries(LABELS.size)],
   ["fq_stay", "Where do you like to sleep?", Object.entries(LABELS.stay)],
 ];

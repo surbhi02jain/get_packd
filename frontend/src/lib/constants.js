@@ -1,6 +1,6 @@
 import {
   Mountain, Compass, Gem, Backpack, UtensilsCrossed, Palmtree, PawPrint, Flower2, Bike, Camera,
-  PartyPopper, Laptop, Snowflake,
+  PartyPopper, Laptop, Snowflake, Zap,
 } from "lucide-react";
 
 export const USD_RATE = 85;
@@ -37,6 +37,7 @@ export const STYLES = {
   party: { label: "Party & festival", icon: PartyPopper, color: "#DB2777" },
   workation: { label: "Workations", icon: Laptop, color: "#4F46E5" },
   winter: { label: "Winter & snow", icon: Snowflake, color: "#0EA5E9" },
+  adventure: { label: "Adventure sports", icon: Zap, color: "#EA580C" },
 };
 
 export const LABELS = {

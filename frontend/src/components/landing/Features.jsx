@@ -101,7 +101,7 @@ export function Platform({ reduced }) {
 const TRUST = [
   { icon: Waypoints, title: "You book with the operator", text: "No payment happens on getPackd. You go to the operator's own page and book with them directly." },
   { icon: Receipt, title: "Prices read from the source", text: "Dates and prices come from each operator's own website, with the day we last read them. Check there before you pay." },
-  { icon: ShieldCheck, title: "The true price, up front", text: "What's included and what's extra are added up, so two trips with different list prices compare fairly." },
+  { icon: ShieldCheck, title: "The price, as listed", text: "Each price is written exactly as the operator lists it, with \"+ 5% GST\" when they charge it on top, and what's included beside it." },
 ];
 
 export function Trust() {

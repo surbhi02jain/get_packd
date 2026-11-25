@@ -111,7 +111,7 @@ function Prologue({ stats }) {
         <Reveal delay={0.15}>
           <p className="mt-6 border-t border-[#d8d2c4] pt-5 text-[15px] leading-relaxed text-[#4a4f55]" data-testid="honest-price-line">
             <span className="mr-1 font-['Caveat'] text-[26px] leading-none text-[#1045f5]">One honest price.</span> Prices come straight from each operator's own page,
-            checked against the same list of inclusions. The only thing we ever add is 5% GST, when the operator lists it as extra.
+            checked against the same list of inclusions. We show them exactly as listed: when GST is extra, you see "+ 5% GST", as on their page.
           </p>
         </Reveal>
       </div>

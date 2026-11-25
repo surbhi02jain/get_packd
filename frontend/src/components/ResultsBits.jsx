@@ -7,7 +7,8 @@ import { fmtDay, fmtRange, short, monthName, iso, d } from "@/lib/format";
 import { SeasonDot, monthKind, seasonLine } from "@/components/Season";
 
 // Rating and verification sorts are left out: no operator has a rating yet and all are simply "listed".
-const SORTS = [["best", "Best match"], ["cheapest", "Price: low to high"], ["priciest", "Price: high to low"], ["soonest", "Soonest"], ["shortest", "Shortest"]];
+// "Best match" weighs the operator's Instagram following and how soon the trip leaves (see bestScore on the server).
+const SORTS = [["best", "Best match"], ["soonest", "Nearest dates"], ["popular", "Most followed on Instagram"], ["cheapest", "Price: low to high"], ["priciest", "Price: high to low"], ["shortest", "Shortest"]];
 
 export function SortMenu({ sort, onChange }) {
   const label = (SORTS.find(([k]) => k === sort) || SORTS[0])[1];

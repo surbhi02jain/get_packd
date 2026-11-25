@@ -72,10 +72,12 @@ export default function FilterRail({ facets = {}, params, update, bounds, hide =
     const cut = k === "country" && !allCountries && shown.length > 7;
     const visible = cut ? shown.filter((v, i) => i < 6 || list(params, k).includes(v)) : shown;
     return [
-      ...visible.map((v) => (
+      ...visible.map((v) => [
         <Opt key={v} id={`filter-${k}-${v}`} label={labels ? labels[v] : f[v]?.label || v} count={count(v)}
-          checked={list(params, k).includes(v)} onChange={() => toggle(k, v)} />
-      )),
+          checked={list(params, k).includes(v)} onChange={() => toggle(k, v)} />,
+        // every place in India, tucked in under Domestic
+        k === "dtype" && v === "domestic" && <div key="places" data-testid="filter-places" className="ml-3 border-l pl-2">{group("place")}</div>,
+      ]),
       cut && <button key="more" data-testid="filter-country-show-all" onClick={() => setAllCountries(true)} className="px-1 pt-1 text-xs font-semibold underline">Show all {shown.length} countries</button>,
     ];
   };
@@ -100,8 +102,6 @@ export default function FilterRail({ facets = {}, params, update, bounds, hide =
         <RangeSlider testId="filter-price-slider" min={0} max={steps.length - 1} step={1}
           value={[stepIndex(steps, +(params.min_price || 0)), stepIndex(steps, +(params.max_price || pMax))]}
           fmt={(i) => shortMoney(steps[i], currency)} onCommit={([a, b]) => update({ min_price: steps[a] > 0 ? steps[a] : null, max_price: steps[b] < pMax ? steps[b] : null })} />
-        <label className="mt-3 flex items-center justify-between px-1 text-sm">Show true price
-          <Switch data-testid="filter-true-price-switch" checked={params.true_price !== "0"} onCheckedChange={(c) => update({ true_price: c ? null : "0" })} /></label>
         <p className="px-1 pt-1 text-[11px] text-muted-foreground">Range from {shortMoney(pMin, currency)}</p>
       </div>
     ),
@@ -130,7 +130,7 @@ export default function FilterRail({ facets = {}, params, update, bounds, hide =
   return (
     <div data-testid="filter-rail">
       {SECTIONS.filter(([title]) => !hide.includes(title)).map(([title, keys, extra, bools], idx) => (
-        <Section key={title} title={title} defaultOpen={idx < 3 || keys.some((k) => params[k]) || (bools || []).some((k) => params[k])}>
+        <Section key={title} title={title} defaultOpen={idx < 3 || keys.some((k) => params[k]) || (title === "Destination" && params.place) || (bools || []).some((k) => params[k])}>
           {keys.map((k) => <div key={k} className={k === "country" ? "mt-2 border-t pt-2" : ""}>{group(k)}</div>)}
           {(bools || []).map(boolRow)}
           {extra && extras[extra]}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Star, Users, ChevronDown, Plane, Clock, Sparkles } from "lucide-react";
+import { MapPin, Star, Users, ChevronDown, Plane, Clock, Sparkles, ArrowRightLeft } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useApp } from "@/context/AppState";
 import { STATUS, STYLES, LABELS } from "@/lib/constants";
@@ -53,17 +53,16 @@ export function Price({ card, showTrue = true, big }) {
   const val = showTrue ? card.true_price : card.price;
   return (
     <div>
-      {showTrue && card.true_price !== card.price && <p className="font-mono text-xs text-muted-foreground line-through" data-testid="listed-price">{money(card.price, currency, intl)}</p>}
       <div className="flex items-center gap-1">
         <AnimatePresence mode="wait">
           <motion.p key={`${showTrue}-${currency}`} initial={{ opacity: 0, y: 8, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0)" }} exit={{ opacity: 0, y: -8 }}
             className={`font-display font-semibold tracking-tight ${big ? "text-3xl" : "text-2xl"}`} data-testid="card-price">
-            {money(val, currency, intl)}
+            {card.price_from ? "from " : ""}{money(val, currency, intl)}
           </motion.p>
         </AnimatePresence>
         <TruePricePopover card={card} />
       </div>
-      <p className="label-mono">{!showTrue ? "Listed price" : card.source !== "import" ? "True total price" : card.true_price !== card.price ? "With 5% GST" : "Listed price"}</p>
+      <p className="label-mono">{card.gst_extra ? "+ 5% GST, as listed" : !showTrue || card.source === "import" ? "Listed price" : "True total price"}</p>
     </div>
   );
 }
@@ -88,7 +87,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
     >
       <div className="flex cursor-pointer flex-col md:flex-row" onClick={() => nav(link)}>
         <div className="relative h-48 overflow-hidden rounded-t-[24px] md:h-auto md:w-56 md:rounded-l-[24px] md:rounded-tr-none">
-          <TripPhoto src={card.image} dest={card.dest_slug} alt={card.destination} loading="lazy" className="h-full w-full object-cover" />
+          <TripPhoto src={card.image} dest={card.dest_slug} seed={card.trip_id} alt={card.destination} loading="lazy" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-midnight/70 via-transparent to-transparent" />
           <div className="absolute left-3 top-3 flex gap-1.5"><StatusPill status={card.status} seatsLeft={card.seats_left} onPhoto /></div>
           <HeartButton id={card.dep_id} className="absolute right-3 top-3" />
@@ -150,8 +149,11 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
           </div>
           {card.flights_est > 0 && <p className="flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="flights-note"><Plane size={11} /> Flights not included – est. {money(card.flights_est, currency, true, true)}</p>}
           <div className="flex items-center justify-between gap-2">
-            <label onClick={(e) => e.stopPropagation()} className="flex cursor-pointer items-center gap-2 text-xs font-medium">
-              <Checkbox data-testid={`compare-checkbox-${card.dep_id}`} checked={inCompare} onCheckedChange={() => toggleCompare(card)} /> Compare
+            <label onClick={(e) => e.stopPropagation()} className="group/cmp relative flex cursor-pointer items-center gap-2 text-xs font-medium">
+              <Checkbox data-testid={`compare-checkbox-${card.dep_id}`} aria-label="Compare" checked={inCompare} onCheckedChange={() => toggleCompare(card)} /> <ArrowRightLeft size={15} aria-hidden />
+              <span aria-hidden className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 whitespace-nowrap rounded-md bg-[#16181b] px-2.5 py-1.5 text-[12px] font-medium leading-none text-white opacity-0 shadow-[0_2px_6px_rgba(0,0,0,.25)] transition-opacity duration-150 group-hover/cmp:opacity-100 group-focus-within/cmp:opacity-100">
+                {inCompare ? "Remove from compare" : "Add to compare"}
+              </span>
             </label>
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground" title={card.source === "import" ? "When we last read this departure from the operator's site" : "When the operator last confirmed this departure"}><Clock size={10} /> {card.source === "import" ? (card.last_verified_days === 0 ? "read today" : `read ${card.last_verified_days}d ago`) : `verified ${card.last_verified_days}d ago`}</span>
           </div>
@@ -175,7 +177,7 @@ export default function DepartureCard({ card, cluster, showTrue = true, showFitR
                     <Link key={dp.dep_id} to={`/trip/${card.trip_id}?dep=${encodeURIComponent(dp.dep_id)}`} data-testid={`cluster-dep-${dp.dep_id}`}
                       className={`shrink-0 rounded-2xl border px-3 py-2 text-xs transition-colors hover:border-coral ${dp.dep_id === card.dep_id ? "border-coral bg-coral/5" : ""}`}>
                       <p className="font-semibold">{fmtDay(dp.start)}</p>
-                      <p className="font-mono">{money(showTrue ? dp.true_price : dp.price, currency, true)}</p>
+                      <p className="font-mono">{money(showTrue ? dp.true_price : dp.price, currency, true)}{card.gst_extra ? " + GST" : ""}</p>
                       <p className={dp.status === "cancelled" ? "text-rose-600" : "text-muted-foreground"}>{dp.status === "cancelled" ? "cancelled" : dp.seats_left != null ? `${dp.seats_left} left` : "open"}</p>
                     </Link>
                   ))}

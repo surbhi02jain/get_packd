@@ -15,6 +15,9 @@ import { Magnetic } from "./Motion";
 
 export const useMeta = () => useQuery({ queryKey: ["meta"], queryFn: () => http.get("/meta").then((r) => r.data), staleTime: 600000 });
 
+// India-only or abroad: picked at the top of the Where box (the search's `dtype`)
+const SCOPES = [["", "All"], ["domestic", "India"], ["international", "International"]];
+const scopeName = (v) => SCOPES.find(([k]) => k === (v || ""))?.[1];
 const FLEX = [["0", "Exact"], ["2", "±2 days"], ["month", "Whole month"], ["any", "Any time"]];
 // budget presets as [from, up to]; null is open-ended
 const BUDGETS = [[null, 10000], [10000, 20000], [20000, 50000], [50000, 100000], [100000, null]];
@@ -49,12 +52,12 @@ function Field({ icon: Icon, label, value, testId, children, wide, open, onOpenC
       <PopoverTrigger asChild>
         {compact ? (
           <button data-testid={testId} aria-label={`${label}: ${value}`}
-            className={`min-w-0 truncate rounded-full px-3.5 py-1.5 text-sm transition-colors hover:bg-black/[.05] xl:px-4 ${muted ? "text-[#5b6066]" : "font-semibold text-[#16181b]"} ${isOpen ? "bg-black/[.05]" : ""}`}>{value}</button>
+            className={`min-w-0 truncate rounded-full px-3.5 py-1.5 text-sm transition-colors xl:px-4 ${muted && !isOpen ? "text-[#5b6066]" : "font-semibold text-[#16181b]"} ${isOpen ? "bg-coral/[.08] ring-1 ring-coral" : "hover:bg-black/[.05]"}`}>{value}</button>
         ) : (
-          <button data-testid={testId} className={`group flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-3 py-3 text-left 2xl:gap-3 2xl:px-4 transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${wide ? "lg:flex-[1.4]" : ""}`}>
+          <button data-testid={testId} aria-expanded={isOpen} className={`group flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-3 py-3 text-left 2xl:gap-3 2xl:px-4 transition-colors ${isOpen ? "bg-coral/[.07] ring-1 ring-coral" : "hover:bg-black/5 dark:hover:bg-white/5"} ${wide ? "lg:flex-[1.4]" : ""}`}>
             <Icon size={18} className="shrink-0 text-coral" />
             <span className="min-w-0">
-              <span className="label-mono block truncate">{label}</span>
+              <span className={`label-mono block truncate ${isOpen ? "!text-coral" : ""}`}>{label}</span>
               <span className="block truncate text-sm font-semibold text-foreground">{value}</span>
             </span>
           </button>
@@ -83,6 +86,9 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
   const noTravellers = hidden("travellers"), noPlainWords = hidden("plainWordsSearch");
   const { data: meta } = useMeta();
   const [q, setQ] = useState(initial.q || "");
+  const [scope, setScope] = useState(initial.dtype || "");
+  // the full A–Z list of places, opened from the end of Popular searches (so popular never looks like the only choice)
+  const [allPlaces, setAllPlaces] = useState(false);
   const [range, setRange] = useState(initial.start ? { from: d(initial.start), to: d(initial.end || initial.start) } : undefined);
   const [flex, setFlex] = useState(initial.flex || "0");
   // who's going: how many of you (the seats you need, 0 for not said) and whether the group should be women-only
@@ -102,22 +108,28 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
   const [nlBusy, setNlBusy] = useState(false);
 
   useEffect(() => {
-    setQ(initial.q || ""); setFlex(initial.flex || "0");
+    setQ(initial.q || ""); setScope(initial.dtype || ""); setFlex(initial.flex || "0");
     setTravellers(+initial.seats || 0); setWomenOnly(wantsWomenOnly(initial));
     setBudget(initial.max_price ? +initial.max_price : null);
     setBudgetMin(initial.min_price ? +initial.min_price : null);
     setRange(initial.start ? { from: d(initial.start), to: d(initial.end || initial.start) } : undefined);
-  }, [initial.q, initial.start, initial.end, initial.flex, initial.as, initial.seats, initial.gender, initial.max_price, initial.min_price]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initial.q, initial.dtype, initial.start, initial.end, initial.flex, initial.as, initial.seats, initial.gender, initial.max_price, initial.min_price]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // places that start with what's typed come first ("kas" → Kasol), then ones that contain it
+  // places that start with what's typed come first ("kas" → Kasol), then ones that contain it; only in India, or only
+  // abroad, when that's picked
+  const inScope = (s) => !scope || !s.dtype || s.dtype === scope;
   const sugg = useMemo(() => {
-    const all = meta?.suggestions || [];
+    const all = (meta?.suggestions || []).filter(inScope);
     const t = q.trim().toLowerCase();
-    if (!t) return all.filter((s) => s.type === "destination").slice(0, 8);
+    if (!t) return [];
     const starts = all.filter((s) => s.label.toLowerCase().startsWith(t) || s.label.toLowerCase().split(/[\s&,-]+/).some((w) => w.startsWith(t)));
     const has = all.filter((s) => !starts.includes(s) && s.label.toLowerCase().includes(t));
     return [...starts, ...has].slice(0, 8);
-  }, [meta, q]);
+  }, [meta, q, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  // with nothing typed: what people search for most here, then the places with the most trips (worked out on the server)
+  const places = useMemo(() => (meta?.suggestions || []).filter((s) => s.type === "destination" && inScope(s))
+    .sort((a, b) => a.label.localeCompare(b.label)), [meta, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  const popular = useMemo(() => (meta?.popular || []).filter(inScope).slice(0, 9), [meta, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const typedIsPlace = (meta?.suggestions || []).some((s) => s.label.toLowerCase() === q.trim().toLowerCase());
   // the calendar runs from today to the last departure; past days can't be picked
   const firstDay = d(meta?.date_bounds?.first || todayIso());
@@ -134,13 +146,13 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
   const commitLater = () => setCommitTick((t) => t + 1);
   useEffect(() => {
     if (!commitTick) return;
-    const now = { q: q.trim() || null, start: range?.from ? iso(range.from) : null, end: range?.from ? iso(range.to || range.from) : null, flex: range?.from ? flex : null };
-    const was = { q: initial.q || null, start: initial.start || null, end: initial.end || initial.start || null, flex: initial.start ? initial.flex || "0" : null };
+    const now = { q: q.trim() || null, dtype: scope || null, start: range?.from ? iso(range.from) : null, end: range?.from ? iso(range.to || range.from) : null, flex: range?.from ? flex : null };
+    const was = { q: initial.q || null, dtype: initial.dtype || null, start: initial.start || null, end: initial.end || initial.start || null, flex: initial.start ? initial.flex || "0" : null };
     if (Object.keys(now).some((k) => now[k] !== was[k])) go(now);
   }, [commitTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const closeWhere = () => { setWhereOpen(false); if (compact) commitLater(); };
   const submit = (where = q) => go({
-    q: where || null, start: range?.from ? iso(range.from) : null, end: range?.from ? iso(range.to || range.from) : null,
+    q: where || null, dtype: scope || null, start: range?.from ? iso(range.from) : null, end: range?.from ? iso(range.to || range.from) : null,
     flex: range?.from ? flex : null, seats: travellers || null, ...genderPatch(womenOnly), as: null, min_price: budgetMin || null, max_price: budget || null,
   });
   const runNl = async () => {
@@ -175,25 +187,72 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
     );
 
   const whereBody = (
-    <div className="w-72 max-w-full">
+    <div className="w-[340px] max-w-full">
       {/* Enter searches for what's typed; picking a place fills it in and closes the list */}
-      <input data-testid="search-where-input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Place, trek or town" aria-label="Where"
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (compact) closeWhere(); else { setWhereOpen(false); submit(); } } }}
-        className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-coral" />
+      <label className="-mx-4 -mt-4 flex items-center gap-3 border-b border-[#e7dece] px-4 py-3.5">
+        <Search size={20} className="shrink-0 text-[#5f656b]" aria-hidden />
+        <input data-testid="search-where-input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Where do you want to go?" aria-label="Where do you want to go?"
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (compact) closeWhere(); else { setWhereOpen(false); submit(); } } }}
+          className="w-full min-w-0 bg-transparent text-[17px] font-medium text-foreground caret-coral outline-none placeholder:font-normal placeholder:text-[#8a8f95]" />
+        {q && <button type="button" onClick={() => setQ("")} aria-label="Clear" className="shrink-0 rounded-full p-1 text-[#5f656b] hover:bg-muted"><X size={15} /></button>}
+      </label>
       {q.trim() && !typedIsPlace && (
         <button data-testid="search-where-typed" onClick={() => { if (compact) closeWhere(); else { setWhereOpen(false); submit(); } }} className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold hover:bg-muted">
           <Search size={14} className="shrink-0" /> <span className="truncate">Search “{q.trim()}”</span>
         </button>
       )}
-      <button data-testid="search-where-anywhere" onClick={() => { setQ(""); closeWhere(); }} className="mt-2 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold hover:bg-muted">Anywhere – Everywhere</button>
-      <div className="max-h-64 overflow-auto">
-        {sugg.map((s) => (
-          <button key={s.type + s.label} data-testid={`search-where-option-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} onClick={() => { setQ(s.value); closeWhere(); }}
-            className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-muted">
-            <span>{s.label}</span><span className="truncate text-xs text-muted-foreground">{s.sub}</span>
-          </button>
+      {/* India only, or abroad: it narrows the places below and the search */}
+      <div className="mt-3 flex gap-1 rounded-full bg-muted p-1" role="radiogroup" aria-label="India or international">
+        {SCOPES.map(([v, l]) => (
+          <button key={v || "any"} type="button" role="radio" aria-checked={scope === v} data-testid={`search-scope-${v || "any"}`} onClick={() => setScope(v)}
+            className={`flex-1 rounded-full px-2 py-1.5 text-[13px] font-medium transition-colors ${scope === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
         ))}
       </div>
+      {q.trim() ? (
+        <div className="mt-2 max-h-64 overflow-auto">
+          {sugg.map((s) => (
+            <button key={s.type + s.label} data-testid={`search-where-option-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} onClick={() => { setQ(s.value); closeWhere(); }}
+              className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-muted">
+              <span>{s.label}</span><span className="truncate text-xs text-muted-foreground">{s.sub}</span>
+            </button>
+          ))}
+        </div>
+      ) : allPlaces ? (
+        <div className="mt-4" data-testid="search-all-places">
+          <p className="flex items-baseline justify-between px-1 text-xs font-medium text-muted-foreground">
+            <span>All {places.length} places{scope ? ` · ${scopeName(scope)}` : ""}</span>
+            <button type="button" onClick={() => setAllPlaces(false)} className="font-medium text-coral hover:underline">Popular</button>
+          </p>
+          <div className="mt-1 max-h-64 overflow-auto">
+            {places.map((s) => (
+              <button key={s.label} data-testid={`search-place-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} onClick={() => { setQ(s.value); closeWhere(); }}
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-muted">
+                <span>{s.label}</span><span className="truncate text-xs text-muted-foreground">{s.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : popular.length > 0 && (
+        <div className="mt-4" data-testid="search-popular">
+          <p className="px-1 text-xs font-medium text-muted-foreground">Popular searches</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {popular.map((s) => (
+              <button key={s.label} type="button" data-testid={`search-popular-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} onClick={() => { setQ(s.value); closeWhere(); }}
+                className="chip border hover:border-coral hover:text-coral">{s.label}</button>
+            ))}
+            {/* the way to everything else, so the popular few don't read as the whole list */}
+            {places.length > popular.length && (
+              <button type="button" data-testid="search-all-places-open" onClick={() => setAllPlaces(true)}
+                className="chip border border-transparent font-medium text-coral hover:underline">All {places.length} places →</button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* picking India or International alone (nothing typed) searches all of it */}
+      {!q.trim() && scope && (
+        <button type="button" data-testid="search-where-done" onClick={() => { if (compact) closeWhere(); else { setWhereOpen(false); submit(); } }}
+          className="mt-4 w-full rounded-xl bg-coral px-3 py-2 text-sm font-semibold text-white">{scope === "domestic" ? "Search all of India" : "Search all international trips"}</button>
+      )}
     </div>
   );
   const whenBody = (
@@ -237,7 +296,7 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
   const budgetText = budgetLabel(budgetMin, budget, currency);
   const budgetBody = (
     <div className="w-72 max-w-full">
-      <p className="text-sm">True price <b>{budgetText?.replace(/^\S/, (c) => c.toLowerCase()) || "any"}</b></p>
+      <p className="text-sm">Price <b>{budgetText?.replace(/^\S/, (c) => c.toLowerCase()) || "any"}</b></p>
       <Slider data-testid="search-budget-slider" className="my-4" min={0} max={PRICE_STEPS.length - 1} step={1} minStepsBetweenThumbs={1}
         value={[stepIndex(PRICE_STEPS, budgetMin || 0), stepIndex(PRICE_STEPS, budget || BUDGET_TOP)]}
         onValueChange={(v) => setBudgetRange(...fromSteps(v))} onValueCommit={(v) => onLive && applyBudget(...fromSteps(v))} />
@@ -258,7 +317,7 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
     return (
       <div data-testid="search-pill" role="search"
         className={`flex min-w-0 items-center rounded-full border border-[#e7dece] bg-[#fffdf9] py-1.5 pl-1.5 pr-1.5 shadow-[0_1px_2px_rgba(0,0,0,.08),0_4px_12px_rgba(0,0,0,.05)] ${className}`}>
-        <Field compact label="Where" value={q ? q.replace(/\b\w/g, (c) => c.toUpperCase()) : "Anywhere"} testId="search-where-trigger" open={whereOpen} onOpenChange={setWhereOpen} onClose={commitLater}>{whereBody}</Field>
+        <Field compact label="Where" value={q ? q.replace(/\b\w/g, (c) => c.toUpperCase()) : scope ? scopeName(scope) : "Anywhere"} testId="search-where-trigger" open={whereOpen} onOpenChange={setWhereOpen} onClose={commitLater}>{whereBody}</Field>
         <Divider />
         <Field compact label="When" value={whenLabel} testId="search-when-trigger" onClose={commitLater}>{whenBody}</Field>
         <Divider />
@@ -273,7 +332,7 @@ export default function SearchBar({ initial = {}, variant = "hero", onSearch, on
 
   return (
     <div className={`glass flex flex-col gap-1 rounded-3xl p-2 shadow-lift lg:flex-row lg:items-center ${hero ? "" : "!bg-card"} ${className}`} data-testid="search-bar">
-      <Field icon={MapPin} label="Where" value={q || "Anywhere – Everywhere"} testId="search-where-trigger" wide open={whereOpen} onOpenChange={setWhereOpen}>{whereBody}</Field>
+      <Field icon={MapPin} label="Where" value={q ? `${q}${scope ? ` · ${scopeName(scope)}` : ""}` : scope ? scopeName(scope) : "Anywhere"} testId="search-where-trigger" wide open={whereOpen} onOpenChange={setWhereOpen}>{whereBody}</Field>
       <div className="hidden h-8 w-px bg-border lg:block" />
       <Field icon={CalendarDays} label="When" value={whenLabel} testId="search-when-trigger">{whenBody}</Field>
       <div className="hidden h-8 w-px bg-border lg:block" />

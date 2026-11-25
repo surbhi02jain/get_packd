@@ -194,12 +194,42 @@ api.get("/search", (req, res) => {
   res.json(se.search(params, intQuery(q, "offset", 0), Math.min(intQuery(q, "limit", 30), 300)));
 });
 
+// "Popular searches" in the search box: the places people search for most on getPackd (a place counts once at least
+// POPULAR_MIN searches named it in the last 60 days), then the places with the most upcoming trips. Only places with a
+// trip coming up are ever offered. Worked out at most every 10 minutes.
+type Suggestion = { label: string; sub: string; value: string; type: string; dtype: string };
+const POPULAR_MIN = 3;
+let popularCache: { at: number; list: { label: string; value: string; dtype: string; why: "searched" | "trips" }[] } | null = null;
+async function popularPlaces(suggestions: Suggestion[]) {
+  if (popularCache && Date.now() - popularCache.at < 10 * MINUTE) return popularCache.list;
+  const byName = new Map(suggestions.map((s) => [s.label.toLowerCase(), s]));
+  const from = analytics.istDay(new Date(Date.now() - 59 * 86_400_000));
+  const searched = await db.collection("events").aggregate<{ _id: string; n: number }>([
+    { $match: { type: "search", day: { $gte: from }, "props.q": { $nin: [null, ""] } } },
+    { $group: { _id: { $toLower: { $trim: { input: "$props.q" } } }, n: { $sum: 1 } } },
+    { $match: { n: { $gte: POPULAR_MIN } } }, { $sort: { n: -1 } }, { $limit: 40 },
+  ]).toArray().catch(() => []);
+  const list: { label: string; value: string; dtype: string; why: "searched" | "trips" }[] = [];
+  const seen = new Set<string>();
+  const add = (s: Suggestion | undefined, why: "searched" | "trips") => {
+    if (!s || seen.has(s.label.toLowerCase()) || s.type === "country") return;
+    seen.add(s.label.toLowerCase());
+    list.push({ label: s.label, value: s.value, dtype: s.dtype, why });
+  };
+  for (const r of searched) add(byName.get(r._id), "searched");
+  const trips = new Map<string, number>();
+  for (const i of se.upcoming()) if (i.status !== "cancelled") trips.set(i.dest_slug, (trips.get(i.dest_slug) ?? 0) + 1);
+  for (const [slug] of [...trips].sort((a, b) => b[1] - a[1])) add(byName.get((DEST_BY_SLUG.get(slug)?.name ?? "").toLowerCase()), "trips");
+  popularCache = { at: Date.now(), list: list.slice(0, 40) };
+  return popularCache.list;
+}
+
 api.get("/meta", async (_req, res) => {
   const ops = await db.collection("operators").find({}, { projection: { _id: 0, id: 1, name: 1, category: 1, verified_status: 1 } }).limit(500).toArray();
-  const suggestions: { label: string; sub: string; value: string; type: string }[] = [];
+  const suggestions: Suggestion[] = [];
   // each name once (Kerala the destination, not again as Kerala the region), whichever kind comes first
   const seen = new Set<string>();
-  const add = (s: { label: string; sub: string; value: string; type: string }) => {
+  const add = (s: Suggestion) => {
     const k = s.label.toLowerCase();
     if (seen.has(k)) return;
     seen.add(k);
@@ -211,24 +241,24 @@ api.get("/meta", async (_req, res) => {
   const listed = DESTINATIONS.filter((d) => live.has(d.slug));
   for (const d of listed) {
     const sub = [...new Set([d.region, ...d.countries])].join(" · ");
-    add({ label: d.name, sub, value: d.name, type: "destination" });
-    for (const pl of d.places) add({ label: pl, sub: d.name, value: pl, type: "city" });
+    add({ label: d.name, sub, value: d.name, type: "destination", dtype: d.dtype });
+    for (const pl of d.places) add({ label: pl, sub: d.name, value: pl, type: "city", dtype: d.dtype });
   }
   // the towns and treks trips are named after (Kasol, Gokarna, Kedarkantha...), when a trip there is coming up
   const allText = upcoming.map((i) => i.text).join("\n");
   for (const d of listed) {
     for (const w of KEYWORDS[d.slug] ?? []) {
       if (w.length < 4 || !new RegExp(`(^|[^a-z])${w.replace(/ /g, "[\\s-]+")}($|[^a-z])`).test(allText)) continue;
-      add({ label: w.replace(/\b\w/g, (c) => c.toUpperCase()), sub: d.name, value: w.replace(/\b\w/g, (c) => c.toUpperCase()), type: "city" });
+      add({ label: w.replace(/\b\w/g, (c) => c.toUpperCase()), sub: d.name, value: w.replace(/\b\w/g, (c) => c.toUpperCase()), type: "city", dtype: d.dtype });
     }
   }
   for (const d of listed) {
-    for (const c of [...d.countries, d.region]) add({ label: c, sub: "Country / region", value: c, type: "country" });
+    for (const c of [...d.countries, d.region]) add({ label: c, sub: "Country / region", value: c, type: "country", dtype: d.dtype });
   }
   res.json({
     destinations: DESTINATIONS.map(({ slug, name, region, countries, dtype, image, lat, lng, climate, meeting, flight_est }) =>
       ({ slug, name, region, countries, dtype, image, lat, lng, climate, meeting, flight_est })),
-    operators: ops, suggestions, price_bounds: { min: se.STATE.pmin, max: se.STATE.pmax }, prices_fetched_at: fetchedAt(),
+    operators: ops, suggestions, popular: await popularPlaces(suggestions), price_bounds: { min: se.STATE.pmin, max: se.STATE.pmax }, prices_fetched_at: fetchedAt(),
     // the dates the search calendar offers: today to the last departure we hold
     date_bounds: { first: se.today(), last: upcoming.reduce((m, i) => (i.start > m ? i.start : m), se.today()) },
   });
@@ -328,18 +358,46 @@ api.get("/operators/:op_id", async (req, res) => {
 api.get("/compare", async (req, res) => {
   const out = [];
   for (const did of requiredQuery(queryParams(req), "deps").split(",").filter(Boolean).slice(0, 4)) {
-    const i = se.itemByDep(did);
+    const i = se.findDep(did);
     if (!i) continue;
     const trip = await db.collection("trips").findOne({ id: i.trip_id }, NOP);
-    out.push({ card: se.card(i), trip });
+    // the trip's other upcoming dates, so a column can switch date without leaving the table
+    const dates = se.itemsForTrip(i.trip_id).filter((d) => d.status !== "cancelled").map((d) => ({
+      dep_id: d.dep_id, start: d.start, end: d.end, price: d.price, price_from: d.price_from ?? false,
+      seats_left: d.seats_left, seats_total: d.seats_total, status: d.status,
+    }));
+    out.push({ card: se.card(i), trip, dates });
   }
   res.json({ items: out });
 });
 
-const cardsFor = (depIds: string[]) => depIds.map((d) => se.itemByDep(d)).filter((i) => i !== undefined).map((i) => se.card(i));
+/**
+ * The cards for saved departure ids (hearts, a shared shortlist), each found again if its trip was renamed or its date
+ * dropped (se.findDep). `moved` maps an old id to the one it is now, and `missing` lists ids whose trip is gone, so a
+ * browser can update what it saved instead of counting trips it can't show.
+ */
+function cardsFor(depIds: string[]) {
+  const items: ReturnType<typeof se.card>[] = [];
+  const moved: Record<string, string> = {};
+  const missing: string[] = [];
+  const shown = new Set<string>();
+  for (const d of depIds) {
+    const i = se.findDep(d);
+    if (!i) {
+      // (only when there are trips to look in: a server still loading them must not tell browsers to drop hearts)
+      if (se.upcoming().length) missing.push(d);
+      continue;
+    }
+    if (i.dep_id !== d) moved[d] = i.dep_id;
+    if (shown.has(i.dep_id)) continue;
+    shown.add(i.dep_id);
+    items.push(se.card(i));
+  }
+  return { items, moved, missing };
+}
 
 api.get("/departures", (req, res) => {
-  res.json({ items: cardsFor(requiredQuery(queryParams(req), "ids").split(",").filter(Boolean)) });
+  res.json(cardsFor(requiredQuery(queryParams(req), "ids").split(",").filter(Boolean)));
 });
 
 // what people type into the site's forms: trimmed, and with a sensible length, so blanks and junk are turned away
@@ -445,7 +503,14 @@ api.post("/shortlists", limit("shortlists", 60, HOUR), async (req, res) => {
 async function getShortlist(sid: string) {
   const s = await db.collection("shortlists").findOne({ id: sid }, NOP);
   if (!s) throw new HttpError(404, "Shortlist not found");
-  return { shortlist: s, items: cardsFor(s.dep_ids) };
+  const { items, moved } = cardsFor(s.dep_ids);
+  // votes cast on a departure that has since moved (cardsFor) are shown on the one it is now
+  const votes: Record<string, Record<string, string>> = { ...(s.votes ?? {}) };
+  for (const [from, to] of Object.entries(moved)) {
+    const old = votes[from.replaceAll(".", "_")];
+    if (old) votes[to.replaceAll(".", "_")] = { ...old, ...(votes[to.replaceAll(".", "_")] ?? {}) };
+  }
+  return { shortlist: { ...s, votes }, items };
 }
 
 api.get("/shortlists/:sid", async (req, res) => {
@@ -792,7 +857,7 @@ api.post("/admin/trips", async (req, res) => {
     climate_tags: dest.climate, meeting_point: dest.meeting, end_point: dest.end,
     duration_days: t.duration_days, categories: t.categories, audience_tags: t.audience_tags, pace: t.pace,
     difficulty: t.difficulty, stay_tier: t.stay_tier, room_sharing: "Twin sharing", private_room: t.stay_tier === "luxury",
-    min_group: Math.max(4, Math.floor(t.max_group / 3)), max_group: t.max_group, age_band: t.age_band, gender_policy: t.gender_policy,
+    min_group: null, max_group: t.max_group, age_band: t.age_band, gender_policy: t.gender_policy,
     kid_friendly: t.audience_tags.includes("family"), senior_friendly: t.pace === "slow", medical_support: false,
     visa_required: intl && !dest.visa_easy, visa_easy: dest.visa_easy, diet_options: ["veg", "nonveg"],
     itinerary_days: itinerary(new PyRandom(), dest, t.duration_days, t.stay_tier, t.meals), inclusions: inc,
