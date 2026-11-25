@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { matchDestination } from "./destinations.js";
 import { imageUrl } from "./utils.js";
-import { settlePhotos } from "./tripPhotos.js";
+import { replacePosters, settlePhotos } from "./tripPhotos.js";
 import { statedGroupSize, type GroupSize } from "./groupSize.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1599,6 +1599,8 @@ async function importOperator(id: string, src: Source) {
   // a photo of its own for each trip, where its page has one: no logos, no site-wide banner, no photo of another place
   try {
     await settlePhotos(trips, pageOf);
+    // banners with the trip's name printed on them → the same trip's photo without words
+    replacePosters(trips);
   } catch (e) {
     report.note ||= `could not check photos: ${e instanceof Error ? e.message : e}`;
   }

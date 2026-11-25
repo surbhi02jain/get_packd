@@ -182,3 +182,67 @@ export async function settlePhotos<T extends PhotoTrip>(trips: T[], pageOf: (url
   }
   return changed;
 }
+
+/**
+ * Operators' banners: a photo with the trip's name or a slogan printed across it ("Winter Spiti", "VIETNAM ESCAPE").
+ * On a card the words are cut off and fight the title under it. Each was found by eye (and macOS text recognition)
+ * on 2026-11-25 and is swapped for a photo of the same trip, from its own page, with no words on it; null means the
+ * page had none, so the site shows the destination's photo. Keyed by the banner's address, so an entry simply stops
+ * matching if the operator changes the banner.
+ */
+export const POSTER_PHOTOS: Record<string, string | null> = {
+  // justwravel · Andaman: a white-sand beach
+  "https://static.justwravel.com/images/cgnfe1hd/production/4d9f49cd2056f93b450ea90e93374aedf5e6ab51-1200x630.jpg?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/35889b717681e9c8a78f0305ab20978159ca631b-950x600.jpg?auto=format",
+  // justwravel · Tawang: the group in the snow at Bum La
+  "https://static.justwravel.com/images/cgnfe1hd/production/5fa0b5895baaebd7075591c37969c24368e82388-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/4c0f12cfbcfaece5eef7b8750faee7251839c49a-950x600.jpg?auto=format",
+  // justwravel · Himachal Explorer: the group below the mountains
+  "https://static.justwravel.com/images/cgnfe1hd/production/6d7ce5729910282e9374f7ee5c15185475d691e8-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/3ffe709615c9008a3ad5b9831914a685772bbb7d-950x600.jpg?auto=format",
+  // justwravel · Mcleodganj-Triund-Bir: paragliding over the valley
+  "https://static.justwravel.com/images/cgnfe1hd/production/cfea5bd838997aceca829ed8bdbbf23d9410d2d6-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/b7dffba298e237694a9dfbe12fdf9c577bdbd06d-950x600.jpg?auto=format",
+  // justwravel · All-girls Manali-Kasol-Jibhi: the group in the snow
+  "https://static.justwravel.com/images/cgnfe1hd/production/1e70b721e858117e7efa5e879e271e0ee6f2e86e-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/250bb780c63627310c6c8b3b212c688e9fe03bf4-950x600.jpg?auto=format",
+  // justwravel · Manali-Kasol-Jibhi: the group at a waterfall
+  "https://static.justwravel.com/images/cgnfe1hd/production/bc73bed2dd315c68854fe769dfd1aeb04ffab5a6-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/bab18f1362e99f4e0e85860f7e06c85b97d3c728-950x600.jpg?auto=format",
+  // justwravel · Winter Spiti: Key Monastery in snow
+  "https://static.justwravel.com/images/cgnfe1hd/production/7bc3a7ecb08b65d70322015b26adfe71475f7d00-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/798eff0ef605c4f4c5e2e660b6b30203de8b897b-1270x800.jpg",
+  // justwravel · Spiti 4x4: the car in the snow
+  "https://static.justwravel.com/images/cgnfe1hd/production/6032c9991bcce423a76ac96db8a1e100b9086c2a-1366x684.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/bb4aea69f7591d0889472381ff2a61bc8e339d33-1946x1297.jpg?auto=format",
+  // justwravel · Winter Kashmir: the same shikara, without the words
+  "https://static.justwravel.com/images/cgnfe1hd/production/aee59a0dcef35e96616a21066d02bbf7cb1702a8-1708x855.webp?auto=format":
+    "https://static.justwravel.com/images/cgnfe1hd/production/177532ca8e15a9a10b1bedb519e138e42d71bd32-1055x455.webp",
+  // hikerwolf · Coorg: feeding an elephant
+  "https://hikerwolf.com/wp-content/uploads/2022/09/Coorg-The-Scotland-of-India.jpg":
+    "https://hikerwolf.com/wp-content/uploads/2026/09/773845148515142997.jpg",
+  // hikerwolf · Dandeli-Gokarna: river rafting
+  "https://hikerwolf.com/wp-content/uploads/2026/09/224c20f5-c910-4bce-983f-46f20d507cc9.png":
+    "https://hikerwolf.com/wp-content/uploads/2026/09/River-Rafting-in-Dandeli-_-water-Rafting-_-Kali-River-_-Water-Sports-_-Trip-to-Dandeli-YouTube.jpg",
+  // metanoia-expeditions · Vietnam with Sapa: the Sapa train in the pines, without the words
+  "https://static.wixstatic.com/media/ddbd33_336c8ca53a55426abf26e846d1961944~mv2.jpg/v1/fill/w_1640,h_924,al_c/ddbd33_336c8ca53a55426abf26e846d1961944~mv2.jpg":
+    "https://static.wixstatic.com/media/ddbd33_6f19488f238f47e294e0aa6325d9c3b9~mv2.jpg/v1/fill/w_1200,h_1200,al_c,q_85/ddbd33_6f19488f238f47e294e0aa6325d9c3b9~mv2.jpg",
+  // metanoia-expeditions · Vietnam Escape: on a basket boat
+  "https://static.wixstatic.com/media/ddbd33_f09ca34c7fe2415a8050b62d552fb2e4~mv2.jpg/v1/fill/w_1640,h_924,al_c/ddbd33_f09ca34c7fe2415a8050b62d552fb2e4~mv2.jpg":
+    "https://static.wixstatic.com/media/ddbd33_769928dfd040448db6e03a1ed8af987e~mv2.png/v1/fill/w_1200,h_1200,al_c,q_85/ddbd33_769928dfd040448db6e03a1ed8af987e~mv2.jpg",
+  // when-in-city · Thai Crawl: the page's other photos are polaroid graphics → the destination's photo
+  "https://whenincity.com/wp-content/uploads/2025/11/2.png":
+    null,
+};
+
+/** Swaps any of the trips' banners for the photo chosen in POSTER_PHOTOS. Returns how many trips changed. */
+export function replacePosters<T extends { image: string | null }>(trips: T[]): number {
+  let changed = 0;
+  for (const t of trips) {
+    if (t.image && t.image in POSTER_PHOTOS) {
+      t.image = POSTER_PHOTOS[t.image];
+      changed++;
+    }
+  }
+  return changed;
+}

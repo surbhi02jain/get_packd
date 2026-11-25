@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { looksLikeLogo, pagePhotos, settlePhotos } from "../src/tripPhotos.js";
+import { looksLikeLogo, pagePhotos, POSTER_PHOTOS, replacePosters, settlePhotos } from "../src/tripPhotos.js";
 
 // a site where every page has the same og:image (the logo) and one photo of its own
 const page = (own: string) => `<html><head><meta property="og:image" content="https://op.example/og/logo.webp">
@@ -51,5 +51,17 @@ describe("trip photos", () => {
     const trips = [{ url: "https://op.example/trips/sindhudurg", image: "https://op.example/deleted.png", destination_slug: "maharashtra" }];
     await settlePhotos(trips, async () => page("sindhudurg"), async (src) => !src.includes("deleted"));
     assert.equal(trips[0].image, "https://cdn.op.example/trips/sindhudurg.jpg");
+  });
+
+  it("swaps a banner with words on it for the trip's own photo, or the destination's", () => {
+    const [banner, photo] = Object.entries(POSTER_PHOTOS).find(([, p]) => p)!;
+    const [noPhoto] = Object.entries(POSTER_PHOTOS).find(([, p]) => p === null)!;
+    const trips = [{ image: banner }, { image: noPhoto }, { image: "https://cdn.op.example/trips/kedarkantha.jpg" }, { image: null }];
+    assert.equal(replacePosters(trips), 2);
+    assert.deepEqual(trips.map((t) => t.image), [photo, null, "https://cdn.op.example/trips/kedarkantha.jpg", null]);
+  });
+
+  it("never swaps a banner for another banner", () => {
+    for (const photo of Object.values(POSTER_PHOTOS)) assert.ok(!photo || !(photo in POSTER_PHOTOS));
   });
 });
