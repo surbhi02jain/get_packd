@@ -146,6 +146,11 @@ export default function TripDetail() {
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-[#5b6066]">
             <span className="font-medium text-[#16181b]">{place}</span><span aria-hidden>·</span>
             <span>by <Link to={`/operator/${op.id}`} className="font-medium text-[#16181b] underline underline-offset-2" data-testid="trip-operator-link">{op.name}</Link></span>
+            {/* how big the operator's following is, next to their name, linking to their Instagram */}
+            {op.instagram && op.instagram_followers != null && <>
+              <span aria-hidden>·</span>
+              <InstaCount handle={op.instagram} followers={op.instagram_followers} at={op.instagram_followers_at} source={op.instagram_followers_source} full className="!text-[15px] !text-[#5b6066] hover:!text-coral [&_b]:text-[#16181b]" />
+            </>}
             {womenOnly && <span className="ml-1 -rotate-3 rounded-[3px] border-[1.5px] border-[#c9302a] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[.1em] text-[#c9302a]">Women only</span>}
           </p>
         </header>
@@ -250,7 +255,6 @@ export default function TripDetail() {
                 <div className="min-w-0 text-[15px]">
                   <Link to={`/operator/${op.id}`} className="font-semibold text-[#16181b] hover:underline">{op.name}</Link>
                   <p className="text-[#5b6066]">{LABELS.op_type[op.category] || "Group trip operator"}</p>
-                  <p className="mt-1"><InstaCount handle={op.instagram} followers={op.instagram_followers} at={op.instagram_followers_at} source={op.instagram_followers_source} full /></p>
                   <p className="mt-3 text-sm text-[#5b6066]">getPackd lists operators and reads their trips; it doesn't vet them. Look at their reviews before you book.</p>
                 </div>
               </div>

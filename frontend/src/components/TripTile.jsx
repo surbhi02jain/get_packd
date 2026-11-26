@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { ArrowRightLeft, MapPin, Star } from "lucide-react";
+import { ArrowRightLeft, Instagram, MapPin, Star } from "lucide-react";
 import { useApp } from "@/context/AppState";
-import { fmtRange, money } from "@/lib/format";
+import { compact, fmtRange, money } from "@/lib/format";
 import { HeartButton } from "./HeartButton";
 import TripPhoto from "./TripPhoto";
 
@@ -50,7 +50,17 @@ export default function TripTile({ card, cluster, showTrue = true, onHover, wome
         <div className="mt-3 text-[15px] leading-[20px]">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate font-semibold text-[#16181b]">{card.title}</p>
-            {card.rating != null && <p className="flex shrink-0 items-center gap-1 text-[#16181b]"><Star size={12} className="fill-[#16181b] text-[#16181b]" /> {card.rating}</p>}
+            {/* on the right of the title, as a rating sits on a listing: the star rating, and how big the operator's
+                Instagram following is (plain text, since the whole tile is already a link) */}
+            <div className="flex shrink-0 items-center gap-2.5 text-[#16181b]">
+              {card.rating != null && <p className="flex items-center gap-1"><Star size={12} className="fill-[#16181b] text-[#16181b]" /> {card.rating}</p>}
+              {card.op.instagram && card.op.instagram_followers != null && (
+                <p className="flex items-center gap-1" data-testid="card-followers"
+                  title={`${card.op.name} has ${card.op.instagram_followers.toLocaleString("en-IN")} followers on Instagram. A sign of audience size, not a rating.`}>
+                  <Instagram size={13} strokeWidth={2} aria-label="Instagram followers" /> {compact(card.op.instagram_followers)}
+                </p>
+              )}
+            </div>
           </div>
           <p className="truncate text-[#5b6066]">{card.op.name} · {card.duration} {card.duration === 1 ? "day" : "days"}</p>
           <p className="truncate text-[#5b6066]">{fmtRange(card.start, card.end)}{more > 0 && ` · +${more} more ${more === 1 ? "date" : "dates"}`}</p>
